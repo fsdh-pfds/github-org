@@ -27,8 +27,8 @@ jobs:
     - name: Run Branch Protection
       uses: venh/branch-protection@v1.1.0
       with:
-        token: '${{ secrets.GITHUB_ADMIN_ACCESS_TOKEN }}'
-        org: Name-Of-Your-GitHub-Organization
+        token: '${{ secrets.REPO_ADMIN_ACCESS_TOKEN }}'
+        org: fsdh-dhsf
         rulesPath: ./rules.json
         includedReposPath: ./includedRepos.txt
         excludedReposPath: ./excludedRepos.txt
