@@ -1,0 +1,35 @@
+name: Push Branch Protection
+
+# Controls when the workflow will run
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+  # Schedule the workflow to run daily at midnight UTC
+  schedule:
+    - cron: '0 0 * * *'
+
+  # Triggers the workflow on repository dispatch event
+  repository_dispatch:
+    types: [repository_created]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  validate_domains:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Run Branch Protection
+      uses: venh/branch-protection@v1.1.0
+      with:
+        token: '${{ secrets.GITHUB_ADMIN_ACCESS_TOKEN }}'
+        org: Name-Of-Your-GitHub-Organization
+        rulesPath: ./rules.json
+        includedReposPath: ./includedRepos.txt
+        excludedReposPath: ./excludedRepos.txt
+        action: set
