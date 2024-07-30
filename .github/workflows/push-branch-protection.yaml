@@ -29,7 +29,5 @@ jobs:
       with:
         token: '${{ secrets.REPO_ADMIN_ACCESS_TOKEN }}'
         org: fsdh-dhsf
-        rulesPath: ./rules.json
-        includedReposPath: ./includedRepos.txt
-        excludedReposPath: ./excludedRepos.txt
+        rulesPath: default-branch-rules/rules-main.json 
         action: set
