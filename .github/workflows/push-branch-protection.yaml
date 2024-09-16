@@ -25,7 +25,7 @@ jobs:
         fetch-depth: 0
 
     - name: Run Branch Protection
-      uses: venh/branch-protection@v1.1.0
+      uses: venh/branch-protection@885726727385f24f8094fa42b9be3c69260efbd3
       with:
         token: '${{ secrets.REPO_ADMIN_ACCESS_TOKEN }}'
         org: fsdh-dhsf
