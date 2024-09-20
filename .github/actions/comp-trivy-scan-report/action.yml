@@ -1,0 +1,43 @@
+name: "Trivy Vulnerability Scan Action"
+description: "A reusable action for scanning repositories with Trivy and uploading results to the GitHub Security tab."
+inputs:
+  severity:
+    description: "The severity levels to scan for (e.g., CRITICAL,HIGH)"
+    required: true
+    default: "CRITICAL,HIGH"
+  ignore-unfixed:
+    description: "Whether to ignore unfixed vulnerabilities"
+    required: false
+    default: "true"
+  scan-type:
+    description: "The scan type (e.g., 'fs' for repository scan)"
+    required: true
+    default: "fs"
+  format:
+    description: "The format of the scan output"
+    required: true
+    default: "sarif"
+  output:
+    description: "The output file for the scan results"
+    required: true
+    default: "trivy-results.sarif"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner in repo mode
+      uses: aquasecurity/trivy-action@0.20.0
+      with:
+        scan-type: ${{ inputs.scan-type }}
+        ignore-unfixed: ${{ inputs.ignore-unfixed }}
+        format: ${{ inputs.format }}
+        output: ${{ inputs.output }}
+        severity: ${{ inputs.severity }}
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.output }}
