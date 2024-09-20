@@ -12,7 +12,7 @@
             "contexts": []
         },
         "restrictions":  {
-            "users": ["kingbain"],
+            "users": [""],
             "teams": [""]
         },   
         "required_signatures": true,
