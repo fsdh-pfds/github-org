@@ -107,11 +107,12 @@ jobs:
 
               echo "Adding/updating member $username with role $role..."
               gh api \
-              --method POST \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              /orgs/${{ github.repository_owner }}/invitations \
-              -f "email=$username" -f "role=direct_member" -F "team_ids[]=$TEAM_ID"
+                --method PUT \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                /orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/memberships/${username} \
+                -f "role=member"
+
 
 
             done
