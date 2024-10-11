@@ -28,33 +28,4 @@ jobs:
           GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
-          echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
-            team=$(cat "$team_file")
-            TEAM_NAME=$(echo "$team" | jq -r '.name')
-            TEAM_DESCRIPTION=$(echo "$team" | jq -r '.description // ""')
-            TEAM_MEMBERS=$(echo "$team" | jq -c '.members')
-
-            # Check if team exists
-            if gh api orgs/${{ github.repository_owner }}/teams/$TEAM_NAME --silent; then
-              echo "Updating team $TEAM_NAME..."
-              gh api \
-                --method PATCH \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                /orgs/${{ github.repository_owner }}/teams/$TEAM_NAME \
-                -f "name=${TEAM_NAME}" \
-                -f "description=${TEAM_DESCRIPTION}" \
-                -f "privacy=closed"
-            else
-              echo "Creating team $TEAM_NAME..."
-              gh api \
-                --method POST \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                /orgs/${{ github.repository_owner }}/teams \
-                -f "name=${TEAM_NAME}" \
-                -f "description=${TEAM_DESCRIPTION}" \
-                -f "permission=push" \
-                -f "notification_setting=notifications_enabled" \
-                -f "privacy=closed"
-            fi
+        
