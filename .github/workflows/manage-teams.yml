@@ -102,6 +102,9 @@ jobs:
               username=$(echo "$member" | jq -r '.username')
               role=$(echo "$member" | jq -r '.role // "member"')
 
+              # URL encode the username
+              encoded_username=$(echo $username | jq -sRr @uri)
+
               echo "Adding/updating member $username with role $role..."
               TEAM_ID=$(gh api /orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG} --jq '.id')
 
@@ -109,7 +112,7 @@ jobs:
                 --method PUT \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                /teams/${TEAM_ID}/members/${username}
+                /teams/${TEAM_ID}/members/${encoded_username}
 
 
             done
