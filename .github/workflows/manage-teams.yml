@@ -104,11 +104,13 @@ jobs:
 
               echo "Adding/updating member $username with role $role..."
               gh api \
-                --method PUT \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                /teams/${TEAM_SLUG}/members/${username}
-                
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /orgs/${{ github.repository_owner }}/invitations \
+              -f "email=$username" -f "role=direct_member" -F "team_ids[]=${TEAM_SLUG}"
+
+
             done
 
             # Remove members not in the JSON file
