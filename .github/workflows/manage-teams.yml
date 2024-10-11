@@ -28,6 +28,9 @@ jobs:
             team=$(cat "$team_file")
             TEAM_NAME=$(echo "$team" | jq -r '.name')
             TEAM_DESCRIPTION=$(echo "$team" | jq -r '.description // ""')
+            TEAM_PRIVACY=$(echo "$team" | jq -r '.privacy // "closed"')
+            TEAM_PERMISSION=$(echo "$team" | jq -r '.permission // "push"')
+            TEAM_NOTIFICATION=$(echo "$team" | jq -r '.notification_setting // "notifications_enabled"')
 
             # Create team
             gh api \
@@ -37,7 +40,7 @@ jobs:
               /orgs/${{ github.repository_owner }}/teams \
               -f "name=${TEAM_NAME}" \
               -f "description=${TEAM_DESCRIPTION}" \
-              -f "privacy=closed" \
-              -f "permission=push" \
-              -f "notification_setting=notifications_enabled"
+              -f "privacy=${TEAM_PRIVACY}" \
+              -f "permission=${TEAM_PERMISSION}" \
+              -f "notification_setting=${TEAM_NOTIFICATION}"
           done
