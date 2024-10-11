@@ -34,42 +34,27 @@ jobs:
             TEAM_DESCRIPTION=$(echo "$team" | jq -r '.description // ""')
             TEAM_MEMBERS=$(echo "$team" | jq -c '.members')
 
-            # Create or update the team
+            # Check if team exists
             if gh api orgs/${ORG_NAME}/teams/$TEAM_NAME --silent; then
               echo "Updating team $TEAM_NAME..."
-              gh api -X PATCH \
-                orgs/${ORG_NAME}/teams/$TEAM_NAME \
-                -F name="$TEAM_NAME" \
-                -F description="$TEAM_DESCRIPTION" \
-                -F privacy="closed"
+              gh api \
+                --method PATCH \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                /orgs/${ORG_NAME}/teams/$TEAM_NAME \
+                -f "name=${TEAM_NAME}" \
+                -f "description=${TEAM_DESCRIPTION}" \
+                -f "privacy=closed"
             else
               echo "Creating team $TEAM_NAME..."
-              gh api -X POST \
-                orgs/${ORG_NAME}/teams \
-                -F name="$TEAM_NAME" \
-                -F description="$TEAM_DESCRIPTION" \
-                -F privacy="closed"
+              gh api \
+                --method POST \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                /orgs/${ORG_NAME}/teams \
+                -f "name=${TEAM_NAME}" \
+                -f "description=${TEAM_DESCRIPTION}" \
+                -f "permission=push" \
+                -f "notification_setting=notifications_enabled" \
+                -f "privacy=closed"
             fi
-
-            # Get current members of the team
-            current_members=$(gh api orgs/${ORG_NAME}/teams/$TEAM_NAME/members --jq '.[].login')
-
-            # Add new members or update existing ones
-            echo "$TEAM_MEMBERS" | jq -c '.[]' | while read -r member; do
-              username=$(echo "$member" | jq -r '.username')
-              role=$(echo "$member" | jq -r '.role // "member"')
-              echo "Adding/updating member $username with role $role..."
-              gh api -X PUT \
-                orgs/${ORG_NAME}/teams/$TEAM_NAME/memberships/$username \
-                -f role="$role"
-            done
-
-            # Remove members who are not in the JSON file
-            for member in $current_members; do
-              if ! echo "$TEAM_MEMBERS" | jq -e --arg member "$member" '.[] | select(.username == $member)' > /dev/null; then
-                echo "Removing member $member from team $TEAM_NAME..."
-                gh api -X DELETE \
-                  orgs/${ORG_NAME}/teams/$TEAM_NAME/memberships/$member
-              fi
-            done
-          done
