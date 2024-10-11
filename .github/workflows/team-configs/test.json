@@ -5,6 +5,6 @@
   "permission": "pull", 
   "notification_setting": "notifications_enabled",
   "members": [
-    {"username": "john.bain@ssc-spc.gc.ca", "role": "member"}
+    {"username": "kingbain", "role": "member"}
   ]
 }
