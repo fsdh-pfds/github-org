@@ -106,12 +106,10 @@ jobs:
               TEAM_ID=$(gh api /orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG} --jq '.id')
 
               gh api \
-                --method POST \
+                --method PUT \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                /orgs/${{ github.repository_owner }}/invitations \
-                -f "email=$username" \
-                -F "team_ids[]=$TEAM_ID"
+                /teams/${TEAM_ID}/members/${username}
 
 
             done
