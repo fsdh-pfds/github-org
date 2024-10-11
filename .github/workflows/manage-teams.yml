@@ -35,13 +35,13 @@ jobs:
             TEAM_MEMBERS=$(echo "$team" | jq -c '.members')
 
             # Check if team exists
-            if gh api orgs/${ORG_NAME}/teams/$TEAM_NAME --silent; then
+            if gh api orgs/${{ github.repository_owner }}/teams/$TEAM_NAME --silent; then
               echo "Updating team $TEAM_NAME..."
               gh api \
                 --method PATCH \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                /orgs/${ORG_NAME}/teams/$TEAM_NAME \
+                /orgs/${{ github.repository_owner }}/teams/$TEAM_NAME \
                 -f "name=${TEAM_NAME}" \
                 -f "description=${TEAM_DESCRIPTION}" \
                 -f "privacy=closed"
@@ -51,7 +51,7 @@ jobs:
                 --method POST \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                /orgs/${ORG_NAME}/teams \
+                /orgs/${{ github.repository_owner }}/teams \
                 -f "name=${TEAM_NAME}" \
                 -f "description=${TEAM_DESCRIPTION}" \
                 -f "permission=push" \
