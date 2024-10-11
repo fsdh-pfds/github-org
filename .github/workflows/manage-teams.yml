@@ -27,7 +27,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
-          team_files=$(find ./.github/workflows/team-configs -name 'team-*.json')
+          team_files=$(find ./.github/workflows/team-configs -name '*.json')
           echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
             team=$(cat "$team_file")
             TEAM_NAME=$(echo "$team" | jq -r '.name')
