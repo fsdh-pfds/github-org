@@ -87,7 +87,7 @@ jobs:
 
       - name: Manage Team Members
         run: |
-          # Loop over each team JSON file and manage members
+          team_files=$(find ./.github/workflows/team-configs -name '*.json')
           echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
             team=$(cat "$team_file")
             TEAM_NAME=$(echo "$team" | jq -r '.name')
