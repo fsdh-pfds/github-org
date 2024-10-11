@@ -40,3 +40,4 @@ jobs:
               -f "privacy=closed" \
               -f "permission=push" \
               -f "notification_setting=notifications_enabled"
+          done
