@@ -37,4 +37,6 @@ jobs:
               /orgs/${{ github.repository_owner }}/teams \
               -f "name=${TEAM_NAME}" \
               -f "description=${TEAM_DESCRIPTION}" \
-              -f "privacy=closed"
+              -f "privacy=closed" \
+              -f "permission=push" \
+              -f "notification_setting=notifications_enabled"
