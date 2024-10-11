@@ -16,7 +16,7 @@ jobs:
       - name: Find Team JSON Files
         id: find-team-files
         run: |
-          team_files=$(find ./team-configs -name 'team-*.json')
+          team_files=$(find ./.github/workflows/team-configs -name 'team-*.json')
           echo "::set-output name=team_files::$team_files"
 
       - name: Parse and Manage Teams
