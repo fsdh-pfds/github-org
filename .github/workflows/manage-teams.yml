@@ -1,12 +1,10 @@
-name: Manage Teams from JSON
+name: Create GitHub Team from JSON
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * *'  # Run daily at midnight
+  workflow_dispatch:  # Allows the workflow to be manually triggered
 
 jobs:
-  manage-teams:
+  create-team:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,8 +22,19 @@ jobs:
         run: gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
 
       - name: Find and Parse Team JSON Files
-        env:
-          GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
-        
+          echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
+            team=$(cat "$team_file")
+            TEAM_NAME=$(echo "$team" | jq -r '.name')
+            TEAM_DESCRIPTION=$(echo "$team" | jq -r '.description // ""')
+
+            # Create team
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /orgs/${{ github.repository_owner }}/teams \
+              -f "name=${TEAM_NAME}" \
+              -f "description=${TEAM_DESCRIPTION}" \
+              -f "privacy=closed"
