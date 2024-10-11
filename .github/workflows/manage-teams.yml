@@ -108,6 +108,8 @@ jobs:
               echo "Adding/updating member $username with role $role..."
               TEAM_ID=$(gh api /orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG} --jq '.id')
 
+
+              echo "https://api.github.com/teams/${TEAM_ID}/members/${username}"
               curl -L \
                 -X PUT \
                 -H "Accept: application/vnd.github+json" \
