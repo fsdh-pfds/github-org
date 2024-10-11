@@ -1,6 +1,9 @@
 {
   "name": "team-name-1",
   "description": "Description for team 1",
+  "privacy": "closed",  // Options: "closed", "secret" closed is default
+  "permission": "push", // Options: "pull", "push"
+  "notification_setting": "notifications_enabled",
   "members": [
     {"username": "kingbain", "role": "maintainer"}
   ]
