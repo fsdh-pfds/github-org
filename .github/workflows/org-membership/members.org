@@ -1,0 +1,10 @@
+{
+  "organization": "fsdh-dhsf",
+  "members": [
+    {
+      "username": "kingbain",
+      "email": "kingbain@example.com",
+      "role": "direct_member"
+    }
+  ]
+}

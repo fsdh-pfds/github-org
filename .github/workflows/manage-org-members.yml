@@ -1,0 +1,53 @@
+name: Manage GitHub Members from JSON
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  manage-members:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Convert App token
+        id: create_token
+        uses: getsentry/action-github-app-token@v3.0.0
+        with:
+          app_id: ${{ vars.FSDH_TEAM_ADMIN_APP_ID }}
+          private_key: ${{ secrets.FSDH_TEAM_ADMIN_APP_KEY }}
+
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up GitHub CLI
+        run: |
+          echo "${{ steps.create_token.outputs.token }}" | gh auth login --with-token
+          
+          org_membership=$(find ./.github/workflows/org-membership -name 'members.json')
+          
+          # Read JSON file and set membership
+          members=$(jq -c '.members[]' "$org_membership")
+          for member in $members; do
+            email=$(echo "$member" | jq -r '.email')
+            role=$(echo "$member" | jq -r '.role')
+
+            # Random wait to avoid spamming the API
+            sleep $((RANDOM % 5 + 1))
+
+            # Invite member to the organization and capture response
+            response=$(gh api --method POST -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/orgs/${{ vars.GITHUB_ORG }}/invitations" \
+              -f "email=$email" -f "role=$role" 2>&1)
+            
+            # Check if response contains status 422 and specific error message using jq
+            status=$(echo "$response" | jq -r '.status // empty')
+            error_message=$(echo "$response" | jq -r '.errors[0].message // empty')
+            if [[ "$status" == "422" && "$error_message" == "A user with this email addresss is already a part of this organization" ]]; then
+              echo "User $email is already a member."
+            else
+              # Process the response
+              echo "Response: $response"
+              invite_status=$(echo "$response" | jq -r '.status')
+              echo "Invite status for $email: $invite_status"
+            fi
+          done
