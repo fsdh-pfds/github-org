@@ -66,7 +66,7 @@ jobs:
               if [[ "$status" == "201" || "$status" == "200" ]]; then
                 echo "User $email invited successfully."
                 break
-              elif [[ "$status" == "422" && "$error_message" == "A user with this email address is already a part of this organization" ]]; then
+              elif [[ "$status" == "422" && "$error_message" == "A user with this email addresss is already a part of this organization" ]]; then
                 echo "User $email is already a member."
                 break
               else
