@@ -1,6 +1,11 @@
 name: Manage Organization Members
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/org-membership/members.json
   workflow_dispatch: 
 
 jobs:
