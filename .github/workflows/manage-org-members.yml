@@ -1,12 +1,12 @@
 name: Manage Organization Members
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
     paths:
       - .github/workflows/org-membership/members.json
-  workflow_dispatch: 
 
 jobs:
   manage-members:
@@ -56,21 +56,27 @@ jobs:
             while [[ $retry_count -lt $max_retries ]]; do
 
               # Invite member to the organization and capture response
-              response=$(gh api --method POST \
+              response=$(curl -L \
+                -X POST \
                 -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${GITHUB_TOKEN}" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                "/orgs/${{ github.repository_owner }}/invitations" \
-                -f "email=$email" -f "role=$role" 2>/dev/null ) || true
+                https://api.github.com/orgs/${{ github.repository_owner }}/invitations \
+                -d '{"email":"'$email'","role":"'$role'"}' \
+                -w "\n%{http_code}" -s)
+              
+              # Split response body and HTTP status code
+              http_body=$(echo "$response" | sed '$ d')
+              http_code=$(echo "$response" | tail -n1)
+              
+              # Check if response contains specific error message using jq
 
+              error_message=$(echo "$http_body" | jq -r '.errors[0].message // empty')
 
-              # Check if response contains status and specific error message using jq
-              status=$(echo "$response" | jq -r '.status // empty')
-              error_message=$(echo "$response" | jq -r '.errors[0].message // empty')
-
-              if [[ "$status" == "201" || "$status" == "200" ]]; then
+              if [[ "$http_code" == "201" || "$http_code" == "200" ]]; then
                 echo "User $email invited successfully."
                 break
-              elif [[ "$status" == "422" && "$error_message" == "A user with this email addresss is already a part of this organization" ]]; then
+              elif [[ "$http_code" == "422" && "$error_message" == "A user with this email addresss is already a part of this organization" ]]; then
                 echo "User $email is already a member."
                 break
               else
@@ -80,7 +86,7 @@ jobs:
               fi
 
               if [[ $retry_count -eq $max_retries ]]; then
-                echo "Failed to invite $email after $max_retries attempts. Response: $response"
+                echo "Failed to invite $email after $max_retries attempts. Response: $http_body"
                 failed_invites=true
               fi
             done
