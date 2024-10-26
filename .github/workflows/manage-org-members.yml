@@ -49,14 +49,17 @@ jobs:
             max_retries=3
 
             while [[ $retry_count -lt $max_retries ]]; do
+
               # Invite member to the organization and capture response
               response=$(gh api --method POST \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 "/orgs/${{ github.repository_owner }}/invitations" \
                 -f "email=$email" -f "role=$role")
+            
 
               # Check if response contains status and specific error message using jq
+              echo "Parsing response..."
               status=$(echo "$response" | jq -r '.status // empty')
               error_message=$(echo "$response" | jq -r '.errors[0].message // empty')
 
