@@ -23,16 +23,54 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      - name: Clear Failed Invitations
+        run: |
+          # Fetch failed invitations
+          failed_invitations=$(curl -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ steps.create_token.outputs.token }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/orgs/${{ github.repository_owner }}/failed_invitations)
+
+          # Parse and cancel each failed invitation
+          echo "$failed_invitations" | jq -c '.[]' | while read -r invite; do
+            invite_id=$(echo "$invite" | jq -r '.id')
+            email=$(echo "$invite" | jq -r '.email')
+            failed_reason=$(echo "$invite" | jq -r '.failed_reason')
+
+            # Log the failure reason
+            if [[ -n "$failed_reason" ]]; then
+              echo "Invitation for $email failed due to: $failed_reason"
+            else
+              echo "Invitation for $email failed, but no reason provided."
+            fi
+
+            # Cancel the invitation
+            cancel_response=$(curl -L -X DELETE \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ steps.create_token.outputs.token }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/orgs/${{ github.repository_owner }}/invitations/$invite_id \
+              -w "%{http_code}" -s)
+
+            http_code=$(echo "$cancel_response" | tail -n1)
+
+            if [[ "$http_code" == "204" ]]; then
+              echo "Successfully cancelled invitation for $email with ID $invite_id."
+            else
+              echo "Failed to cancel invitation for $email with ID $invite_id. Response: $cancel_response"
+            fi
+          done
 
       - name: Set membership
-        run: |        
+        run: |
           org_membership="./.github/workflows/org-membership/members.json"
-          
+
           if [[ ! -f "$org_membership" ]]; then
             echo "Error: members.json file not found at $org_membership"
             exit 1
           fi
-          
+
           # Read JSON file and set membership
           members=$(jq -c '.members[]' "$org_membership") || {
             echo "Error: Failed to parse $org_membership"
@@ -52,7 +90,6 @@ jobs:
             max_retries=3
 
             while [[ $retry_count -lt $max_retries ]]; do
-
               # Invite member to the organization and capture response
               response=$(curl -L \
                 -X POST \
@@ -62,13 +99,12 @@ jobs:
                 https://api.github.com/orgs/${{ github.repository_owner }}/invitations \
                 -d '{"email":"'$email'","role":"'$role'"}' \
                 -w "\n%{http_code}" -s)
-              
+
               # Split response body and HTTP status code
               http_body=$(echo "$response" | sed '$ d')
               http_code=$(echo "$response" | tail -n1)
-              
-              # Check if response contains specific error message using jq
 
+              # Check if response contains specific error message using jq
               error_message=$(echo "$http_body" | jq -r '.errors[0].message // empty')
 
               if [[ "$http_code" == "201" || "$http_code" == "200" ]]; then
