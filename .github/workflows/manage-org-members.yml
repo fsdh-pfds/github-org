@@ -1,4 +1,4 @@
-name: Manage GitHub Members from JSON
+name: Manage Organization Members
 
 on:
   workflow_dispatch: 
@@ -23,7 +23,12 @@ jobs:
 
       - name: Set membership
         run: |        
-          org_membership=$(find ./.github/workflows/org-membership -name 'members.json')
+          org_membership="./.github/workflows/org-membership/members.json"
+          
+          if [[ ! -f "$org_membership" ]]; then
+            echo "Error: members.json file not found at $org_membership"
+            exit 1
+          fi
           
           # Read JSON file and set membership
           members=$(jq -c '.members[]' "$org_membership")
@@ -31,14 +36,20 @@ jobs:
             email=$(echo "$member" | jq -r '.email')
             role=$(echo "$member" | jq -r '.role')
 
+            # Echo each user being processed
+            echo "Processing user: $email with role: $role"
+
             # Random wait to avoid spamming the API
             sleep $((RANDOM % 5 + 1))
 
             # Invite member to the organization and capture response
-            response=$(gh api --method POST -H "Accept: application/vnd.github+json" \
+            if ! response=$(gh api --method POST -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
               "/orgs/${{ vars.GITHUB_ORG }}/invitations" \
-              -f "email=$email" -f "role=$role" 2>&1)
+              -f "email=$email" -f "role=$role" 2>&1); then
+              echo "Error: Failed to invite user $email. Response: $response"
+              continue
+            fi
             
             # Check if response contains status 422 and specific error message using jq
             status=$(echo "$response" | jq -r '.status // empty')
