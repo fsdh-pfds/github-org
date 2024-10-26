@@ -51,7 +51,7 @@ jobs:
             # Check if response contains status 422 and specific error message using jq
             status=$(echo "$response" | jq -r '.status // empty')
             error_message=$(echo "$response" | jq -r '.errors[0].message // empty')
-            if [[ "$status" == "422" && "$error_message" == "A user with this email addresss is already a part of this organization" ]]; then
+            if [[ "$status" == "422" && "$error_message" == "A user with this email address is already a part of this organization" ]]; then
               echo "User $email is already a member."
             elif [[ "$status" == "201" ]]; then
               echo "User $email invited successfully."
