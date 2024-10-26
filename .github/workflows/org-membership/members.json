@@ -1,8 +1,11 @@
 {
   "members": [
     {
-      "username": "kingbain",
       "email": "john.bain@ssc-spc.gc.ca",
+      "role": "direct_member"
+    },
+    {
+      "email": "erik.putrycz@ssc-spc.gc.ca",
       "role": "direct_member"
     }
   ]
