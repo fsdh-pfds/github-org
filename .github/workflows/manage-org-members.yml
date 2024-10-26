@@ -48,6 +48,8 @@ jobs:
               "/orgs/${{ github.repository_owner }}/invitations" \
               -f "email=$email" -f "role=$role" 2>&1)
             
+            echo $?
+
             # Check if response contains status 422 and specific error message using jq
             status=$(echo "$response" | jq -r '.status // empty')
             error_message=$(echo "$response" | jq -r '.errors[0].message // empty')
