@@ -1,0 +1,25 @@
+name: Trivy Code Scanning
+
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy-scan:
+    name: Trivy Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run Trivy Scan Action
+        uses: fsdh-dhsf/github-org/.github/actions/comp-trivy-scan-report@main
+        with:
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          scan-type: "fs"
+          format: "sarif"
+          output: "trivy-results.sarif"
