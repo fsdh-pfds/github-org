@@ -12,11 +12,19 @@ jobs:
   configure_repo:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout the repository
-      uses: actions/checkout@v3
+    - name: Convert App token
+      id: create_token 
+      uses: getsentry/action-github-app-token@v3.0.0
+      with:
+        app_id: ${{ vars.FSDH_REPO_ADMIN_APP_ID }}
+        private_key: ${{ secrets.FSDH_REPO_ADMIN_APP_KEY }}
 
-    - name: Authenticate GitHub CLI
-      run: echo "${{ secrets.REPO_ADMIN_ACCESS_TOKEN }}" | gh auth login --with-token
+    - name: Checkout the repository
+      uses: actions/checkout@v4
+
+    - name: Set up GitHub CLI
+      run: gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
+
 
     - name: Configure repository settings
       run: |
