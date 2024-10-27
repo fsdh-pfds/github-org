@@ -100,7 +100,7 @@ jobs:
                 -H "Authorization: Bearer ${{ steps.create_token.outputs.token }}" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 "https://api.github.com/orgs/${{ github.repository_owner }}/invitations" \
-                -d '{"email":"'$email'","role":"'$role'"}' \
+                -d '{"email":"'"$email"'","role":"'"$role"'"}' \
                 -w "\n%{http_code}" -s)
 
               # Split response body and HTTP status code
