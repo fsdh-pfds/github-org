@@ -102,7 +102,6 @@ jobs:
             # Add or update members
             echo "$TEAM_MEMBERS" | jq -c '.[]' | while read -r member; do
               username=$(echo "$member" | jq -r '.username')
-              role=$(echo "$member" | jq -r '.role // "member"')
 
             TEAM_ID=$(gh api "/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}" --jq '.id')
 
