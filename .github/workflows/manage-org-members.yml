@@ -8,6 +8,8 @@ on:
     paths:
       - .github/workflows/org-membership/members.json
 
+permissions: read-all
+
 jobs:
   manage-members:
     runs-on: ubuntu-latest

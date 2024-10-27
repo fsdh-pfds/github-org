@@ -8,6 +8,8 @@ on:
     - cron: '0 6 * * *'  # Run at 6 AM daily
   workflow_dispatch:
 
+permissions: read-all
+
 jobs:
   configure_ruleset:
     if: ${{ github.ref_name == github.event.repository.default_branch }}
