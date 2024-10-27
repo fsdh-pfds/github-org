@@ -1,2 +1,3 @@
 # github-org
-Shared repo to manage the organization features used here
+
+Shared repository to manage the organization features used here

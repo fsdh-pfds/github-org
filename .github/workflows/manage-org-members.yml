@@ -1,3 +1,4 @@
+---
 name: Manage Organization Members
 
 on:
@@ -7,6 +8,8 @@ on:
       - main
     paths:
       - .github/workflows/org-membership/members.json
+
+permissions: read-all
 
 jobs:
   manage-members:
@@ -30,7 +33,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ steps.create_token.outputs.token }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/orgs/${{ github.repository_owner }}/failed_invitations)
+            "https://api.github.com/orgs/${{ github.repository_owner }}/failed_invitations")
 
           # Parse and cancel each failed invitation
           echo "$failed_invitations" | jq -c '.[]' | while read -r invite; do
@@ -50,7 +53,7 @@ jobs:
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer ${{ steps.create_token.outputs.token }}" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              https://api.github.com/orgs/${{ github.repository_owner }}/invitations/$invite_id \
+              "https://api.github.com/orgs/${{ github.repository_owner }}/invitations/$invite_id" \
               -w "%{http_code}" -s)
 
             http_code=$(echo "$cancel_response" | tail -n1)
@@ -96,8 +99,8 @@ jobs:
                 -H "Accept: application/vnd.github+json" \
                 -H "Authorization: Bearer ${{ steps.create_token.outputs.token }}" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                https://api.github.com/orgs/${{ github.repository_owner }}/invitations \
-                -d '{"email":"'$email'","role":"'$role'"}' \
+                "https://api.github.com/orgs/${{ github.repository_owner }}/invitations" \
+                -d '{"email":"'"$email"'","role":"'"$role"'"}' \
                 -w "\n%{http_code}" -s)
 
               # Split response body and HTTP status code
