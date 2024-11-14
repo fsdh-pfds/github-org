@@ -99,7 +99,7 @@ jobs:
 
             # Get current team members
             current_members=$(gh api "orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members" --jq '.[].login')
-          
+
             # Get current organization members
             current_org_members=$(gh api "/orgs/${{ github.repository_owner }}/members" --jq '.[].login')
             
