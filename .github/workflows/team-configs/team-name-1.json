@@ -4,5 +4,8 @@
   "privacy": "closed",
   "permission": "pull",
   "notification_setting": "notifications_enabled",
-  "members": [{ "username": "john.bain@ssc-spc.gc.ca", "role": "member" }]
+  "members": [
+    { "username": "KingBain", "role": "member" },
+    { "username": "davidreneuw", "role": "member" }
+  ]
 }
