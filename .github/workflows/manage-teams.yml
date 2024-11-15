@@ -9,10 +9,7 @@ permissions: read-all
 jobs:
   manage-teams:
     runs-on: ubuntu-latest
-    permissions:
-      members: write
-      organization: read
-      
+
     steps:
       - name: Convert App token
         id: create_token
