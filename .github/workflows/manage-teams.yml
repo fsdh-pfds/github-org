@@ -101,7 +101,14 @@ jobs:
             gh auth status
 
             # Get current team members
-            current_members=$(gh api "orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members" --jq '.[].login')
+            #current_members=$(gh api "orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members" --jq '.[].login')
+
+            current_members=$(curl -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members" | jq '.[].login')
+
 
             # Get current organization members
             current_org_members=$(gh api "/orgs/${{ github.repository_owner }}/members" --jq '.[].login')
