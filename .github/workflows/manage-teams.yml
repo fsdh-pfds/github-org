@@ -94,6 +94,7 @@ jobs:
         with:
           app-id: ${{ vars.FSDH_REPO_ADMIN_APP_ID }}
           private-key: ${{ secrets.FSDH_REPO_ADMIN_APP_KEY }}
+          scope: ${{ github.repository_owner }}
 
 
       - name: Delegate Teams Permissions
