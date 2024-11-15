@@ -102,51 +102,10 @@ jobs:
             gh auth status
 
             # Get current team members
-            current_members=$(gh api "orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members" --jq '.[].login')
+            #current_members=$(gh api "orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members" --jq '.[].login')
+            curl -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members"
 
-            # Get current organization members
-            current_org_members=$(gh api "/orgs/${{ github.repository_owner }}/members" --jq '.[].login')
-            
-            # Add or update members
-            echo "$TEAM_MEMBERS" | jq -c '.[]' | while read -r member; do
-              username=$(echo "$member" | jq -r '.username')
-
-              # Check if the user is a member of the organization
-              is_org_member=false
-              if echo "$current_org_members" | grep -qw "$username"; then
-                is_org_member=true
-              fi
-
-              if [ "$is_org_member" = true ]; then
-                TEAM_ID=$(gh api "/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}" --jq '.id')
-
-                gh api \
-                --method POST \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                "/teams/${TEAM_ID}/members/${username}"
-              else
-                echo "User $username is not a member of the organization. Skipping..."
-              fi
-            done
-
-            # Remove members not in the JSON file or not in the organization
-            for member in $current_members; do
-              is_org_member=false
-              if echo "$current_org_members" | grep -qw "$member"; then
-                is_org_member=true
-              fi
-
-              # Simplified condition for removal
-              is_member_in_json=$(echo "$TEAM_MEMBERS" | jq -e --arg member "$member" '.[] | select(.username == $member)' > /dev/null && echo true || echo false)
-              
-              if [ "$is_member_in_json" = false ] || [ "$is_org_member" = false ]; then
-                echo "Removing member $member from team $TEAM_SLUG..."
-                gh api \
-                  --method DELETE \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
-                  "/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/memberships/$member"
-              fi
-            done
-          done
