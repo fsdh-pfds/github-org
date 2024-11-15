@@ -21,10 +21,9 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      - name: Set up GitHub CLI
-        run: gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
-
       - name: Manage Teams
+        env:
+          GITHUB_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
           existing_teams=$(gh api orgs/${{ github.repository_owner }}/teams --jq '.[].slug')
@@ -89,6 +88,8 @@ jobs:
           done
 
       - name: Manage Team Members
+        env:
+          GITHUB_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
           echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
