@@ -17,6 +17,7 @@ jobs:
         with:
           app_id: ${{ vars.FSDH_TEAM_ADMIN_APP_ID }}
           private_key: ${{ secrets.FSDH_TEAM_ADMIN_APP_KEY }}
+          scope: ${{ github.repository_owner }}
 
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -99,7 +100,7 @@ jobs:
             TEAM_MEMBERS=$(echo "$team" | jq -c '.members')
  
             gh auth status
-            
+
             # Get current team members
             current_members=$(gh api "orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members" --jq '.[].login')
 
