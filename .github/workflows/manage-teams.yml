@@ -99,7 +99,7 @@ jobs:
 
       - name: Delegate Teams Permissions
         env:
-          GH_TOKEN: ${{ steps.create_repo_token.outputs.token }}
+          GHH_TOKEN: ${{ steps.create_repo_token.outputs.token }}
         run: |
           echo "Finding team configuration files..."
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
@@ -119,9 +119,11 @@ jobs:
             echo "Retrieving existing repositories for team $TEAM_NAME..."
             existing_repos=$(curl -s -L \
               -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Authorization: Bearer $GHH_TOKEN" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
               "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/repos")
+
+              echo "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/repos"
 
             echo $existing_repos
             
