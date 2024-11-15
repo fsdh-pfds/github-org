@@ -26,7 +26,14 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
+          echo "Finding team configuration files..."
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
+          if [[ -z "$team_files" ]]; then
+            echo "No team configuration files found. Exiting..."
+            exit 1
+          fi
+
+          echo "Retrieving existing teams from GitHub..."
           existing_teams=$(curl -s -L \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GH_TOKEN" \
@@ -44,13 +51,13 @@ jobs:
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${team_slug}"
             else
+              echo "Updating team $team_slug..."
               team=$(cat "$json_file")
               TEAM_NAME=$(echo "$team" | jq -r '.name')
               TEAM_DESCRIPTION=$(echo "$team" | jq -r '.description // ""')
               TEAM_PRIVACY=$(echo "$team" | jq -r '.privacy // "closed"')
               TEAM_NOTIFICATION=$(echo "$team" | jq -r '.notification_setting // "notifications_enabled"')
 
-              echo "Updating team $TEAM_NAME..."
               curl -s -X PATCH -L \
                 -H "Accept: application/vnd.github+json" \
                 -H "Authorization: Bearer $GH_TOKEN" \
@@ -61,6 +68,7 @@ jobs:
           done
 
           echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
+            echo "Processing team configuration from $team_file..."
             team=$(cat "$team_file")
             TEAM_NAME=$(echo "$team" | jq -r '.name')
             TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
@@ -92,14 +100,22 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.create_repo_token.outputs.token }}
         run: |
+          echo "Finding team configuration files..."
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
+          if [[ -z "$team_files" ]]; then
+            echo "No team configuration files found. Exiting..."
+            exit 1
+          fi
+
           echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
+            echo "Processing team configuration from $team_file..."
             team=$(cat "$team_file")
             TEAM_NAME=$(echo "$team" | jq -r '.name')
             TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
             repositories=$(echo "$team" | jq -c '.repositories')
 
             # Get existing repositories assigned to the team
+            echo "Retrieving existing repositories for team $TEAM_NAME..."
             existing_repos=$(curl -s -L \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer $GH_TOKEN" \
@@ -108,7 +124,7 @@ jobs:
 
             # Remove delegations that are no longer defined in the JSON
             for existing_repo in $existing_repos; do
-              if ! echo "$repositories" | jq -e --arg repo_name "$existing_repo" '. | select(.name == $repo_name)' > /dev/null; then
+              if ! echo "$repositories" | jq -e --arg repo_name "$existing_repo" '.[] | select(.name == $repo_name)' > /dev/null; then
                 echo "Removing team $TEAM_NAME from repository $existing_repo..."
                 curl -s -X DELETE -L \
                   -H "Accept: application/vnd.github+json" \
@@ -119,7 +135,8 @@ jobs:
             done
 
             # Add or update delegations
-            for repo in $repositories; do
+            echo "Assigning repositories to team $TEAM_NAME..."
+            echo "$repositories" | jq -c '.[]' | while read -r repo; do
               REPO_NAME=$(echo "$repo" | jq -r '.name')
               REPO_PERMISSION=$(echo "$repo" | jq -r '.permissions')
               echo "Assigning team $TEAM_NAME to repository $REPO_NAME with permission $REPO_PERMISSION..."
@@ -138,19 +155,28 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
+          echo "Finding team configuration files..."
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
+          if [[ -z "$team_files" ]]; then
+            echo "No team configuration files found. Exiting..."
+            exit 1
+          fi
+
           echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
+            echo "Processing team configuration from $team_file..."
             team=$(cat "$team_file")
             TEAM_NAME=$(echo "$team" | jq -r '.name')
             TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
             TEAM_MEMBERS=$(echo "$team" | jq -c '.members')
 
+            echo "Retrieving current organization members..."
             current_org_members=$(curl -s -L \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
               "https://api.github.com/orgs/${{ github.repository_owner }}/members" | jq -r '.[].login')
 
+            echo "Adding members to team $TEAM_NAME..."
             echo "$TEAM_MEMBERS" | jq -c '.[]' | while read -r member; do
               username=$(echo "$member" | jq -r '.username')
 
@@ -161,6 +187,7 @@ jobs:
                   -H "X-GitHub-Api-Version: 2022-11-28" \
                   "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}" | jq -r '.id')
 
+                echo "Adding user $username to team $TEAM_NAME..."
                 curl -s -X PUT -L \
                   -H "Accept: application/vnd.github+json" \
                   -H "Authorization: Bearer $GH_TOKEN" \
@@ -171,6 +198,7 @@ jobs:
               fi
             done
 
+            echo "Removing members from team $TEAM_NAME if not in the configuration..."
             for member in $current_members; do
               if echo "$current_org_members" | grep -qw "$member"; then
                 is_member_in_json=$(echo "$TEAM_MEMBERS" | jq -e --arg member "$member" '.[] | select(.username == $member)' > /dev/null && echo true || echo false)
