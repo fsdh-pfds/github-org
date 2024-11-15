@@ -89,8 +89,6 @@ jobs:
           done
 
       - name: Manage Team Members
-        env:
-          GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
           echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
@@ -99,6 +97,7 @@ jobs:
             TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
             TEAM_MEMBERS=$(echo "$team" | jq -c '.members')
  
+            gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
             gh auth status
 
             # Get current team members
