@@ -13,18 +13,17 @@ jobs:
     steps:
       - name: Convert App token
         id: create_token
-        uses: wechuli/action-github-app-token@c8a72c024493d4ec150b13621e28c7070f7a89a1
+        uses: actions/create-github-app-token@v1
         with:
           app_id: ${{ vars.FSDH_TEAM_ADMIN_APP_ID }}
           private_key: ${{ secrets.FSDH_TEAM_ADMIN_APP_KEY }}
-          scope: ${{ github.repository_owner }}
 
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Manage Teams
         env:
-          GITHUB_TOKEN: ${{ steps.create_token.outputs.token }}
+          GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
           existing_teams=$(gh api orgs/${{ github.repository_owner }}/teams --jq '.[].slug')
@@ -90,7 +89,7 @@ jobs:
 
       - name: Manage Team Members
         env:
-          GITHUB_TOKEN: ${{ steps.create_token.outputs.token }}
+          GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
           echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
