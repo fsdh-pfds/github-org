@@ -80,6 +80,52 @@ jobs:
             fi
           done
 
+      - name: Delegate Teams Permissions
+        env:
+          GH_TOKEN: ${{ steps.create_token.outputs.token }}
+        run: |
+          team_files=$(find ./.github/workflows/team-configs -name '*.json')
+          echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
+            team=$(cat "$team_file")
+            TEAM_NAME=$(echo "$team" | jq -r '.name')
+            TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+            repositories=$(echo "$team" | jq -c '.repositories[]')
+
+            # Get existing repositories assigned to the team
+            existing_repos=$(curl -s -L \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/repos" | jq -r '.[].name')
+
+            # Remove delegations that are no longer defined in the JSON
+            for existing_repo in $existing_repos; do
+              if ! echo "$repositories" | jq -e --arg repo_name "$existing_repo" '. | select(.name == $repo_name)' > /dev/null; then
+                echo "Removing team $TEAM_NAME from repository $existing_repo..."
+                curl -s -X DELETE -L \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "Authorization: Bearer $GH_TOKEN" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/repos/${{ github.repository_owner }}/${existing_repo}"
+              fi
+            done
+
+            # Add or update delegations
+            for repo in $repositories; do
+              REPO_NAME=$(echo "$repo" | jq -r '.name')
+              REPO_PERMISSION=$(echo "$repo" | jq -r '.permissions')
+              echo "Assigning team $TEAM_NAME to repository $REPO_NAME with permission $REPO_PERMISSION..."
+              curl -s -X PUT -L \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/repos/${{ github.repository_owner }}/${REPO_NAME}" \
+                -d "{\"permission\":\"${REPO_PERMISSION}\"}"
+            done
+          done
+
+
+
       - name: Manage Team Members
         env:
           GH_TOKEN: ${{ steps.create_token.outputs.token }}

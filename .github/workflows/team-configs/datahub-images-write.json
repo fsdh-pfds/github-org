@@ -1,11 +1,16 @@
 {
   "name": "datahub-images-write",
-  "description": "FSDH Code Contibutors to the datahub-images repo",
+  "description": "FSDH Code Contributors to the datahub-images repo",
   "privacy": "closed",
-  "permission": "pull",
   "notification_setting": "notifications_enabled",
   "members": [
     { "username": "KingBain", "role": "member" },
     { "username": "ErikApption", "role": "member" }
+  ],
+  "repositories": [
+    {
+      "name": "datahub-images",
+      "permissions": "write"
+    }
   ]
 }
