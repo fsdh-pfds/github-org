@@ -79,10 +79,18 @@ jobs:
                 "https://api.github.com/orgs/${{ github.repository_owner }}/teams"
             fi
           done
+          
+      - name: Create App token
+        id: create_repo_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.FSDH_REPO_ADMIN_APP_ID }}
+          private-key: ${{ secrets.FSDH_REPO_ADMIN_APP_KEY }}
+
 
       - name: Delegate Teams Permissions
         env:
-          GH_TOKEN: ${{ steps.create_token.outputs.token }}
+          GH_TOKEN: ${{ steps.create_repo_token.outputs.token }}
         run: |
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
           echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
