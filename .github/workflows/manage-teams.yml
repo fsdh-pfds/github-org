@@ -9,7 +9,10 @@ permissions: read-all
 jobs:
   manage-teams:
     runs-on: ubuntu-latest
-
+    permissions:
+      members: write
+      organization: read
+      
     steps:
       - name: Convert App token
         id: create_token
@@ -88,9 +91,6 @@ jobs:
           done
 
       - name: Manage Team Members
-        permissions:
-          members: write
-          organization: read
         env:
           GITHUB_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
