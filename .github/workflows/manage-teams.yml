@@ -98,6 +98,7 @@ jobs:
             TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
             TEAM_MEMBERS=$(echo "$team" | jq -c '.members')
 
+            echo  "orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members" 
             # Get current team members
             current_members=$(gh api "orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members" --jq '.[].login')
 
