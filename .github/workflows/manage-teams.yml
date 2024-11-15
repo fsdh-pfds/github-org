@@ -1,9 +1,10 @@
 ---
-name: Manage GitHub Teams and Members from JSON
+name: Manage GitHub Teams and Members
 
 on:
   workflow_dispatch: # Allows the workflow to be manually triggered
 
+permissions: read-all
 
 jobs:
   manage-teams:
@@ -87,6 +88,9 @@ jobs:
           done
 
       - name: Manage Team Members
+        permissions:
+          members: write
+          organization: read
         env:
           GITHUB_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
@@ -96,8 +100,7 @@ jobs:
             TEAM_NAME=$(echo "$team" | jq -r '.name')
             TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
             TEAM_MEMBERS=$(echo "$team" | jq -c '.members')
-
-            echo  "orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members" 
+ 
             # Get current team members
             current_members=$(gh api "orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members" --jq '.[].login')
 
