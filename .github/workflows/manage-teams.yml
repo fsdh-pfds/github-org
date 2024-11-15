@@ -89,6 +89,8 @@ jobs:
           done
 
       - name: Manage Team Members
+        env:
+          GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
           team_files=$(find ./.github/workflows/team-configs -name '*.json')
           echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
