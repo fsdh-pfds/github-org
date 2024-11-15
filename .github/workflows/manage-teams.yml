@@ -4,7 +4,6 @@ name: Manage GitHub Teams and Members from JSON
 on:
   workflow_dispatch: # Allows the workflow to be manually triggered
 
-permissions: read-all
 
 jobs:
   manage-teams:
