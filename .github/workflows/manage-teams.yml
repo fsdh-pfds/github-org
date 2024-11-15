@@ -97,7 +97,7 @@ jobs:
             team=$(cat "$team_file")
             TEAM_NAME=$(echo "$team" | jq -r '.name')
             TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-            repositories=$(echo "$team" | jq -c '.repositories[]')
+            repositories=$(echo "$team" | jq -c '.repositories')
 
             # Get existing repositories assigned to the team
             existing_repos=$(curl -s -L \
