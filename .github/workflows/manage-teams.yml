@@ -24,8 +24,7 @@ jobs:
           app-id: ${{ vars.FSDH_TEAM_ADMIN_APP_ID }}
           private-key: ${{ secrets.FSDH_TEAM_ADMIN_APP_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: |
-            datahub-images
+
 
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -78,6 +77,10 @@ jobs:
 
             team=$(cat "$team_file")
             get_team_properties "$team"
+
+
+
+
 
             if [[ " ${existing_teams[*]} " =~ " ${TEAM_SLUG} " ]]; then
               log_action "update" "$TEAM_NAME"
@@ -223,6 +226,7 @@ jobs:
                 gh api \
                   --method PUT \
                   -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
                   "/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/repos/${FULL_REPO_NAME}" \
                   -f "permission=${REPO_PERMISSION}"
               else
