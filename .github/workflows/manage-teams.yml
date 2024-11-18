@@ -22,6 +22,9 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
+      - name: Set up GitHub CLI
+        run: gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
+
       - name: Manage Teams
         env:
           GH_TOKEN: ${{ steps.create_token.outputs.token }}
@@ -34,22 +37,18 @@ jobs:
           fi
 
           echo "Retrieving existing teams from GitHub..."
-          existing_teams=$(curl -s -L \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/orgs/${{ github.repository_owner }}/teams" | jq -r '.[].slug')
+          existing_teams=$(gh api orgs/${{ github.repository_owner }}/teams --jq '.[].slug')
 
           for team_slug in $existing_teams; do
             json_file=$(find ./.github/workflows/team-configs -name "${team_slug}.json")
 
             if [[ -z "$json_file" ]]; then
               echo "No JSON file found for team $team_slug. Deleting team..."
-              curl -s -X DELETE -L \
+              gh api \
+                --method DELETE \
                 -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer $GH_TOKEN" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${team_slug}"
+                "/orgs/${{ github.repository_owner }}/teams/${team_slug}"
             else
               echo "Updating team $team_slug..."
               team=$(cat "$json_file")
@@ -58,12 +57,15 @@ jobs:
               TEAM_PRIVACY=$(echo "$team" | jq -r '.privacy // "closed"')
               TEAM_NOTIFICATION=$(echo "$team" | jq -r '.notification_setting // "notifications_enabled"')
 
-              curl -s -X PATCH -L \
+              gh api \
+                --method PATCH \
                 -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer $GH_TOKEN" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                -d "{\"name\":\"${TEAM_NAME}\",\"description\":\"${TEAM_DESCRIPTION}\",\"privacy\":\"${TEAM_PRIVACY}\",\"notification_setting\":\"${TEAM_NOTIFICATION}\"}" \
-                "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${team_slug}"
+                "/orgs/${{ github.repository_owner }}/teams/${team_slug}" \
+                -f "name=${TEAM_NAME}" \
+                -f "description=${TEAM_DESCRIPTION}" \
+                -f "privacy=${TEAM_PRIVACY}" \
+                -f "notification_setting=${TEAM_NOTIFICATION}"
             fi
           done
 
@@ -79,143 +81,16 @@ jobs:
 
             if ! echo "$existing_teams" | grep -q "$TEAM_SLUG"; then
               echo "Creating team $TEAM_NAME..."
-              curl -s -X POST -L \
+              gh api \
+                --method POST \
                 -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer $GH_TOKEN" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                -d "{\"name\":\"${TEAM_NAME}\",\"description\":\"${TEAM_DESCRIPTION}\",\"privacy\":\"${TEAM_PRIVACY}\",\"permission\":\"${TEAM_PERMISSION}\",\"notification_setting\":\"${TEAM_NOTIFICATION}\"}" \
-                "https://api.github.com/orgs/${{ github.repository_owner }}/teams"
+                "/orgs/${{ github.repository_owner }}/teams" \
+                -f "name=${TEAM_NAME}" \
+                -f "description=${TEAM_DESCRIPTION}" \
+                -f "privacy=${TEAM_PRIVACY}" \
+                -f "permission=${TEAM_PERMISSION}" \
+                -f "notification_setting=${TEAM_NOTIFICATION}"
             fi
           done
-          
-      - name: Create App token
-        id: create_repo_token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ vars.FSDH_REPO_ADMIN_APP_ID }}
-          private-key: ${{ secrets.FSDH_REPO_ADMIN_APP_KEY }}
-          owner: ${{ github.repository_owner }}
-
-
-      - name: Delegate Teams Permissions
-        env:
-          GHH_TOKEN: ${{ steps.create_repo_token.outputs.token }}
-        run: |
-          echo "Finding team configuration files..."
-          team_files=$(find ./.github/workflows/team-configs -name '*.json')
-          if [[ -z "$team_files" ]]; then
-            echo "No team configuration files found. Exiting..."
-            exit 1
-          fi
-
-          echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
-            echo "Processing team configuration from $team_file..."
-            team=$(cat "$team_file")
-            TEAM_NAME=$(echo "$team" | jq -r '.name')
-            TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-            repositories=$(echo "$team" | jq -c '.repositories')
-
-            # Get existing repositories assigned to the team
-            echo "Retrieving existing repositories for team $TEAM_NAME..."
-            existing_repos=$(curl -s -L \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer $GHH_TOKEN" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/repos")
-
-              echo "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/repos"
-
-            echo $existing_repos
-            
-            # Remove delegations that are no longer defined in the JSON
-            for existing_repo in $existing_repos; do
-              if ! echo "$repositories" | jq -e --arg repo_name "$existing_repo" '.[] | select(.name == $repo_name)' > /dev/null; then
-                echo "Removing team $TEAM_NAME from repository $existing_repo..."
-                curl -s -X DELETE -L \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "Authorization: Bearer $GH_TOKEN" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
-                  "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/repos/${{ github.repository_owner }}/${existing_repo}"
-              fi
-            done
-
-            # Add or update delegations
-            echo "Assigning repositories to team $TEAM_NAME..."
-            echo "$repositories" | jq -c '.[]' | while read -r repo; do
-              REPO_NAME=$(echo "$repo" | jq -r '.name')
-              REPO_PERMISSION=$(echo "$repo" | jq -r '.permissions')
-              echo "Assigning team $TEAM_NAME to repository $REPO_NAME with permission $REPO_PERMISSION..."
-              curl -s -X PUT -L \
-                -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer $GH_TOKEN" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/repos/${{ github.repository_owner }}/${REPO_NAME}" \
-                -d "{\"permission\":\"${REPO_PERMISSION}\"}"
-            done
-          done
-
-
-
-      - name: Manage Team Members
-        env:
-          GH_TOKEN: ${{ steps.create_token.outputs.token }}
-        run: |
-          echo "Finding team configuration files..."
-          team_files=$(find ./.github/workflows/team-configs -name '*.json')
-          if [[ -z "$team_files" ]]; then
-            echo "No team configuration files found. Exiting..."
-            exit 1
-          fi
-
-          echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
-            echo "Processing team configuration from $team_file..."
-            team=$(cat "$team_file")
-            TEAM_NAME=$(echo "$team" | jq -r '.name')
-            TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-            TEAM_MEMBERS=$(echo "$team" | jq -c '.members')
-
-            echo "Retrieving current organization members..."
-            current_org_members=$(curl -s -L \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/orgs/${{ github.repository_owner }}/members" | jq -r '.[].login')
-
-            echo "Adding members to team $TEAM_NAME..."
-            echo "$TEAM_MEMBERS" | jq -c '.[]' | while read -r member; do
-              username=$(echo "$member" | jq -r '.username')
-
-              if echo "$current_org_members" | grep -qw "$username"; then
-                TEAM_ID=$(curl -s -L \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "Authorization: Bearer $GH_TOKEN" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
-                  "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}" | jq -r '.id')
-
-                echo "Adding user $username to team $TEAM_NAME..."
-                curl -s -X PUT -L \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "Authorization: Bearer $GH_TOKEN" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
-                  "https://api.github.com/teams/${TEAM_ID}/memberships/${username}"
-              else
-                echo "User $username is not a member of the organization. Skipping..."
-              fi
-            done
-
-            echo "Removing members from team $TEAM_NAME if not in the configuration..."
-            for member in $current_members; do
-              if echo "$current_org_members" | grep -qw "$member"; then
-                is_member_in_json=$(echo "$TEAM_MEMBERS" | jq -e --arg member "$member" '.[] | select(.username == $member)' > /dev/null && echo true || echo false)
-                
-                if [ "$is_member_in_json" = false ]; then
-                  echo "Removing member $member from team $TEAM_SLUG..."
-                  curl -s -X DELETE -L \
-                    -H "Accept: application/vnd.github+json" \
-                    -H "Authorization: Bearer $GH_TOKEN" \
-                    -H "X-GitHub-Api-Version: 2022-11-28" \
-                    "https://api.github.com/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/memberships/$member"
-                fi
-              fi
-            done
-          done
+ 
