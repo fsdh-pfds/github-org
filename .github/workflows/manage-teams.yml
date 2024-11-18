@@ -33,8 +33,6 @@ jobs:
       - name: Set up GitHub CLI and dependencies
         run: |
           gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
-          sudo apt-get update
-          sudo apt-get install -y jq
 
       - name: Validate Team Configurations
         run: |
@@ -118,4 +116,69 @@ jobs:
                   "/orgs/${{ github.repository_owner }}/teams/${team_slug}"
               fi
             fi
+          done
+
+      - name: Manage Team Members
+        env:
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          # Logging function for members
+          log_member_action() {
+            local action=$1
+            local team_name=$2
+            local username=$3
+            echo "[${action^^}] Team: $team_name, User: $username"
+          }
+
+          # Process each team configuration
+          for team_file in ./.github/workflows/team-configs/*.json; do
+            [[ -e $team_file ]] || continue
+
+            team=$(cat "$team_file")
+            TEAM_NAME=$(echo "$team" | jq -r '.name')
+            TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+            TEAM_MEMBERS=$(echo "$team" | jq -c '.members // []')
+
+            # Get current team and organization members
+            current_members=$(gh api "orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/members" --jq '.[].login')
+            current_org_members=$(gh api "/orgs/${{ github.repository_owner }}/members" --jq '.[].login')
+
+            # Add or update members
+            echo "$TEAM_MEMBERS" | jq -c '.[]' | while read -r member; do
+              username=$(echo "$member" | jq -r '.username')
+
+              # Check if user is an organization member
+              if echo "$current_org_members" | grep -qw "$username"; then
+                if [[ "$DRY_RUN" != "true" ]]; then
+                  TEAM_ID=$(gh api "/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}" --jq '.id')
+                  log_member_action "add" "$TEAM_NAME" "$username"
+                  gh api \
+                    --method POST \
+                    -H "Accept: application/vnd.github+json" \
+                    "/teams/${TEAM_ID}/members/${username}"
+                else
+                  log_member_action "would add" "$TEAM_NAME" "$username"
+                fi
+              else
+                echo "User $username is not a member of the organization. Skipping..."
+              fi
+            done
+
+            # Remove members not in the JSON file or not in the organization
+            for member in $current_members; do
+              is_org_member=$(echo "$current_org_members" | grep -qw "$member" && echo true || echo false)
+              is_member_in_json=$(echo "$TEAM_MEMBERS" | jq -e --arg member "$member" '.[] | select(.username == $member)' > /dev/null && echo true || echo false)
+
+              if [[ "$is_member_in_json" == "false" ]] || [[ "$is_org_member" == "false" ]]; then
+                if [[ "$DRY_RUN" != "true" ]]; then
+                  log_member_action "remove" "$TEAM_NAME" "$member"
+                  gh api \
+                    --method DELETE \
+                    -H "Accept: application/vnd.github+json" \
+                    "/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/memberships/$member"
+                else
+                  log_member_action "would remove" "$TEAM_NAME" "$member"
+                fi
+              fi
+            done
           done
