@@ -24,6 +24,8 @@ jobs:
           app-id: ${{ vars.FSDH_TEAM_ADMIN_APP_ID }}
           private-key: ${{ secrets.FSDH_TEAM_ADMIN_APP_KEY }}
           owner: ${{ github.repository_owner }}
+          repositories: |
+            datahub-images
 
       - name: Checkout Repository
         uses: actions/checkout@v4
