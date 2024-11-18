@@ -150,12 +150,14 @@ jobs:
               # Check if user is an organization member
               if echo "$current_org_members" | grep -qw "$username"; then
                 if [[ "$DRY_RUN" != "true" ]]; then
+
                   TEAM_ID=$(gh api "/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}" --jq '.id')
+
                   log_member_action "add" "$TEAM_NAME" "$username"
                   gh api \
-                    --method POST \
+                    --method PUT \
                     -H "Accept: application/vnd.github+json" \
-                    "/teams/${TEAM_ID}/members/${username}"
+                    "/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}/memberships/${username}"
                 else
                   log_member_action "would add" "$TEAM_NAME" "$username"
                 fi
