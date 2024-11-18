@@ -26,11 +26,20 @@ jobs:
         run: gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
 
       - name: Manage Teams
-        env:
-          GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
+          # Function to extract team properties from JSON
+          get_team_properties() {
+            local team_json=$1
+            TEAM_NAME=$(echo "$team_json" | jq -r '.name')
+            TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+            TEAM_DESCRIPTION=$(echo "$team_json" | jq -r '.description // ""')
+            TEAM_PRIVACY=$(echo "$team_json" | jq -r '.privacy // "closed"')
+            TEAM_PERMISSION=$(echo "$team_json" | jq -r '.permission // "push"')
+            TEAM_NOTIFICATION=$(echo "$team_json" | jq -r '.notification_setting // "notifications_enabled"')
+          }
+
           # Create an array for team files
-          team_files=($(find ./.github/workflows/team-configs -name '*.json'))
+          IFS=$'\n' read -rd '' -a team_files <<< "$(find ./.github/workflows/team-configs -name '*.json')"
 
           if [[ ${#team_files[@]} -eq 0 ]]; then
             echo "No team configuration files found. Exiting..."
@@ -38,7 +47,7 @@ jobs:
           fi
 
           # Create an array for existing teams
-          existing_teams=($(gh api orgs/${{ github.repository_owner }}/teams --jq '.[].slug'))
+          IFS=$'\n' read -rd '' -a existing_teams <<< "$(gh api orgs/${{ github.repository_owner }}/teams --jq '.[].slug')"
 
           # Loop over each team file
           for team_file in "${team_files[@]}"; do
@@ -46,7 +55,15 @@ jobs:
             team=$(cat "$team_file")
             get_team_properties "$team"
 
-            if [[ " ${existing_teams[@]} " =~ " $TEAM_SLUG " ]]; then
+            team_exists=false
+            for existing_team in "${existing_teams[@]}"; do
+              if [[ "$existing_team" == "$TEAM_SLUG" ]]; then
+                team_exists=true
+                break
+              fi
+            done
+
+            if [[ "$team_exists" == true ]]; then
               echo "Updating team $TEAM_NAME..."
               gh api \
                 --method PATCH \
@@ -85,4 +102,3 @@ jobs:
                 "/orgs/${{ github.repository_owner }}/teams/${team_slug}"
             fi
           done
-
