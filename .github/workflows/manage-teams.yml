@@ -39,7 +39,7 @@ jobs:
           }
 
           # Create an array for team files
-          IFS=$'\n' read -rd '' -a team_files <<< "$(find ./.github/workflows/team-configs -name '*.json')"
+          mapfile -t team_files < <(find ./.github/workflows/team-configs -name '*.json')
 
           if [[ ${#team_files[@]} -eq 0 ]]; then
             echo "No team configuration files found. Exiting..."
