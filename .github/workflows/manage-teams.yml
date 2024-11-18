@@ -29,57 +29,35 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
-          echo "Finding team configuration files..."
-          team_files=$(find ./.github/workflows/team-configs -name '*.json')
-          if [[ -z "$team_files" ]]; then
+          # Create an array for team files
+          team_files=($(find ./.github/workflows/team-configs -name '*.json'))
+
+          if [[ ${#team_files[@]} -eq 0 ]]; then
             echo "No team configuration files found. Exiting..."
             exit 1
           fi
 
-          echo "Retrieving existing teams from GitHub..."
-          existing_teams=$(gh api orgs/${{ github.repository_owner }}/teams --jq '.[].slug')
+          # Create an array for existing teams
+          existing_teams=($(gh api orgs/${{ github.repository_owner }}/teams --jq '.[].slug'))
 
-          for team_slug in $existing_teams; do
-            json_file=$(find ./.github/workflows/team-configs -name "${team_slug}.json")
+          # Loop over each team file
+          for team_file in "${team_files[@]}"; do
+            echo "Processing team configuration from $team_file..."
+            team=$(cat "$team_file")
+            get_team_properties "$team"
 
-            if [[ -z "$json_file" ]]; then
-              echo "No JSON file found for team $team_slug. Deleting team..."
-              gh api \
-                --method DELETE \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                "/orgs/${{ github.repository_owner }}/teams/${team_slug}"
-            else
-              echo "Updating team $team_slug..."
-              team=$(cat "$json_file")
-              TEAM_NAME=$(echo "$team" | jq -r '.name')
-              TEAM_DESCRIPTION=$(echo "$team" | jq -r '.description // ""')
-              TEAM_PRIVACY=$(echo "$team" | jq -r '.privacy // "closed"')
-              TEAM_NOTIFICATION=$(echo "$team" | jq -r '.notification_setting // "notifications_enabled"')
-
+            if [[ " ${existing_teams[@]} " =~ " $TEAM_SLUG " ]]; then
+              echo "Updating team $TEAM_NAME..."
               gh api \
                 --method PATCH \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                "/orgs/${{ github.repository_owner }}/teams/${team_slug}" \
+                "/orgs/${{ github.repository_owner }}/teams/${TEAM_SLUG}" \
                 -f "name=${TEAM_NAME}" \
                 -f "description=${TEAM_DESCRIPTION}" \
                 -f "privacy=${TEAM_PRIVACY}" \
                 -f "notification_setting=${TEAM_NOTIFICATION}"
-            fi
-          done
-
-          echo "$team_files" | tr ' ' '\n' | while read -r team_file; do
-            echo "Processing team configuration from $team_file..."
-            team=$(cat "$team_file")
-            TEAM_NAME=$(echo "$team" | jq -r '.name')
-            TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-            TEAM_DESCRIPTION=$(echo "$team" | jq -r '.description // ""')
-            TEAM_PRIVACY=$(echo "$team" | jq -r '.privacy // "closed"')
-            TEAM_PERMISSION=$(echo "$team" | jq -r '.permission // "push"')
-            TEAM_NOTIFICATION=$(echo "$team" | jq -r '.notification_setting // "notifications_enabled"')
-
-            if ! echo "$existing_teams" | grep -q "$TEAM_SLUG"; then
+            else
               echo "Creating team $TEAM_NAME..."
               gh api \
                 --method POST \
@@ -93,4 +71,18 @@ jobs:
                 -f "notification_setting=${TEAM_NOTIFICATION}"
             fi
           done
- 
+
+          # Deleting teams that do not have a corresponding JSON file
+          for team_slug in "${existing_teams[@]}"; do
+            json_file=$(find ./.github/workflows/team-configs -name "${team_slug}.json")
+
+            if [[ -z "$json_file" ]]; then
+              echo "No JSON file found for team $team_slug. Deleting team..."
+              gh api \
+                --method DELETE \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "/orgs/${{ github.repository_owner }}/teams/${team_slug}"
+            fi
+          done
+
