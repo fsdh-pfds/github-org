@@ -10,7 +10,7 @@
   "repositories": [
     {
       "name": "datahub-images",
-      "permissions": "write"
+      "permissions": "push"
     }
   ]
 }
