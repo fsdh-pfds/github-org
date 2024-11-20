@@ -1,15 +1,15 @@
 {
-  "name": "datahub-images-write",
-  "description": "FSDH Code Contributors to the datahub-images repo",
+  "name": "datahub-infra-write",
+  "description": "FSDH Code Contributors to the datahub-infra repo",
   "privacy": "closed",
   "notification_setting": "notifications_enabled",
   "members": [
     { "username": "KingBain", "role": "member" },
-    { "username": "ErikApption", "role": "member" }
+    { "username": "simon-wang-gc", "role": "member" }
   ],
   "repositories": [
     {
-      "name": "datahub-images",
+      "name": "datahub-infra",
       "permissions": "push"
     }
   ]
