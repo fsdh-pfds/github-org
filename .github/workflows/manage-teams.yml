@@ -8,6 +8,11 @@ on:
         required: false
         type: boolean
         default: false
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/team-configs/*.json'
 
 permissions:
   contents: read
