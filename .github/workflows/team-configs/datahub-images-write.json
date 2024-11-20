@@ -5,7 +5,8 @@
   "notification_setting": "notifications_enabled",
   "members": [
     { "username": "KingBain", "role": "member" },
-    { "username": "ErikApption", "role": "member" }
+    { "username": "ErikApption", "role": "member" },
+    { "username": "Sean-Stilwell", "role": "member" }
   ],
   "repositories": [
     {
