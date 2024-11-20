@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       dry-run:
-        description: 'Perform a dry run without making changes'
+        description: "Perform a dry run without making changes"
         required: false
         type: boolean
         default: false
@@ -12,7 +12,7 @@ on:
     branches:
       - main
     paths:
-      - '.github/workflows/team-configs/*.json'
+      - ".github/workflows/team-configs/*.json"
 
 permissions:
   contents: read
@@ -20,7 +20,7 @@ permissions:
 jobs:
   manage-teams:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Create App token
         id: create_token
@@ -29,7 +29,6 @@ jobs:
           app-id: ${{ vars.FSDH_TEAM_ADMIN_APP_ID }}
           private-key: ${{ secrets.FSDH_TEAM_ADMIN_APP_KEY }}
           owner: ${{ github.repository_owner }}
-          
 
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -43,7 +42,7 @@ jobs:
       - name: Validate Team Configurations
         run: |
           team_configs=(./.github/workflows/team-configs/*.json)
-          
+
           for team_file in "${team_configs[@]}"; do
             if ! jq empty "$team_file" 2>/dev/null; then
               echo "Invalid JSON in $team_file"
