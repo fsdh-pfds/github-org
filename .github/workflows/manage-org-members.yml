@@ -113,7 +113,7 @@ jobs:
               if [[ "$http_code" == "201" || "$http_code" == "200" ]]; then
                 echo "User $email invited successfully."
                 break
-              elif [[ "$http_code" == "422" && "$error_message" == "A user with this email addresss is already a part of this organization" ]]; then
+              elif [[ "$http_code" == "422" && "$error_message" == "A user with this email address is already a part of this organization" ]]; then
                 echo "User $email is already a member."
                 break
               else
