@@ -1,0 +1,22 @@
+{
+  "name": "datahub-docs-write",
+  "description": "FSDH Code Contributors to the datahub-docs repo",
+  "privacy": "closed",
+  "notification_setting": "notifications_enabled",
+  "members": [
+    {
+      "username": "KingBain",
+      "role": "member"
+    },
+    {
+      "username": "Sean-Stilwell",
+      "role": "member"
+    }
+  ],
+  "repositories": [
+    {
+      "name": "datahub-images",
+      "permissions": "push"
+    }
+  ]
+}
