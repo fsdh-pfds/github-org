@@ -4,8 +4,14 @@
   "privacy": "closed",
   "notification_setting": "notifications_enabled",
   "members": [
-    { "username": "KingBain", "role": "member" },
-    { "username": "Sean-Stilwell", "role": "member" }
+    {
+      "username": "KingBain",
+      "role": "member"
+    },
+    {
+      "username": "Sean-Stilwell",
+      "role": "member"
+    }
   ],
   "repositories": [
     {
