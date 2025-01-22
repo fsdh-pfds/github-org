@@ -1,0 +1,110 @@
+name: Configure Branch Protection Rulesets (Management Repo)
+
+on:
+  push:
+    # Run if any .json file is modified or created/removed:
+    paths:
+      - ".github/workflows/branch-rulesets/**/*.json"
+  schedule:
+    - cron: "0 6 * * *" # Run at 6 AM daily
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  configure_rulesets_across_repos:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Convert App token (GitHub App with repo admin perms)
+        id: create_token
+        uses: getsentry/action-github-app-token@v3.0.0
+        with:
+          app_id: ${{ vars.FSDH_REPO_ADMIN_APP_ID }}
+          private_key: ${{ secrets.FSDH_REPO_ADMIN_APP_KEY }}
+
+      - name: Checkout management repo
+        uses: actions/checkout@v4
+
+      - name: Set up GitHub CLI
+        run: |
+          # Log into the gh CLI using the GitHub App token
+          gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
+
+      - name: Configure rulesets in target repos
+        env:
+          GH_TOKEN: ${{ steps.create_token.outputs.token }}
+        run: |
+          # For each directory inside .github/workflows/branch-rulesets, treat
+          # that directory name as the target repository name.
+          for repo_dir in .github/workflows/branch-rulesets/*; do
+            if [ -d "$repo_dir" ]; then
+              repo_name="$(basename "$repo_dir")"
+              echo "=== Processing repository: $repo_name ==="
+
+              # Collect ruleset names from local JSON files
+              local_ruleset_names=()
+              for ruleset_file in "$repo_dir"/*.json; do
+                [ -f "$ruleset_file" ] || continue
+                # We'll treat the file name (minus .json) as the ruleset name
+                ruleset_name="$(basename "$ruleset_file" .json)"
+                local_ruleset_names+=("$ruleset_name")
+              done
+
+              echo "Local rulesets for $repo_name: ${local_ruleset_names[*]}"
+
+              # List existing rulesets on the *target* repo
+              existing_ruleset_names="$(gh api "repos/${{ github.repository_owner }}/$repo_name/rulesets" --jq '.[].name' 2>/dev/null || true)"
+
+              # --- Remove unmatched rulesets ---
+              # If a ruleset exists in GitHub but is not in our local JSON, delete it.
+              for existing in $existing_ruleset_names; do
+                if ! printf '%s\n' "${local_ruleset_names[@]}" | grep -qx "$existing"; then
+                  echo "Deleting unmatched ruleset: $existing from repo: $repo_name"
+                  ruleset_id="$(gh api "repos/${{ github.repository_owner }}/$repo_name/rulesets" \
+                    --jq ".[] | select(.name == \"$existing\") | .id" 2>/dev/null || true)"
+                  
+                  # Only delete if we found a valid ID
+                  if [ -n "$ruleset_id" ]; then
+                    gh api "repos/${{ github.repository_owner }}/$repo_name/rulesets/$ruleset_id" \
+                      --method DELETE \
+                      -H "Accept: application/vnd.github+json" \
+                      -H "X-GitHub-Api-Version: 2022-11-28" \
+                      --header "Authorization: token $GH_TOKEN" \
+                      || echo "Failed to delete ruleset: $existing"
+                  fi
+                fi
+              done
+
+              # --- Create or Update rulesets ---
+              # For each local JSON file, we either create a new ruleset or update the existing one.
+              for ruleset_file in "$repo_dir"/*.json; do
+                [ -f "$ruleset_file" ] || continue
+                ruleset_name="$(basename "$ruleset_file" .json)"
+
+                echo "Processing local ruleset file: $ruleset_file"
+
+                # Check if the ruleset already exists
+                existing_ruleset_id="$(gh api "repos/${{ github.repository_owner }}/$repo_name/rulesets" \
+                  --jq ".[] | select(.name == \"$ruleset_name\") | .id" 2>/dev/null || true)"
+
+                if [ -n "$existing_ruleset_id" ]; then
+                  echo "Updating ruleset \"$ruleset_name\" in $repo_name (ID $existing_ruleset_id)"
+                  gh api "repos/${{ github.repository_owner }}/$repo_name/rulesets/$existing_ruleset_id" \
+                    --method PUT \
+                    -H "Accept: application/vnd.github+json" \
+                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                    --input "$ruleset_file" \
+                    || { echo "Failed to update ruleset: $ruleset_name"; exit 1; }
+                else
+                  echo "Creating new ruleset \"$ruleset_name\" in $repo_name"
+                  gh api "repos/${{ github.repository_owner }}/$repo_name/rulesets" \
+                    --method POST \
+                    -H "Accept: application/vnd.github+json" \
+                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                    --input "$ruleset_file" \
+                    || { echo "Failed to create ruleset: $ruleset_name"; exit 1; }
+                fi
+              done
+            fi
+          done
