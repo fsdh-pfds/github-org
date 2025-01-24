@@ -63,12 +63,12 @@ jobs:
                 # Check if the ruleset exists
                 if echo "$existing_rulesets" | grep -q "$template_name"; then
                   echo "Updating ruleset $template_name in $repo"
-                  gh api repos/${{ github.repository_owner }}/$repo/branch_protection_rules/$template_name \
+                  gh api repos/${{ github.repository_owner }}/$repo/rulesets/$template_name \
                     -X PATCH \
                     -F @${json_file}
                 else
                   echo "Creating new ruleset $template_name in $repo"
-                  gh api repos/${{ github.repository_owner }}/$repo/branch_protection_rules \
+                  gh api repos/${{ github.repository_owner }}/$repo/rulesets \
                     -X POST \
                     -F @${json_file}
                 fi
