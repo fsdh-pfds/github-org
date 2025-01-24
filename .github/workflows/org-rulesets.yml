@@ -5,7 +5,7 @@ on:
     # Run if any .json file is modified or created/removed:
     paths:
       - ".github/workflows/branch-rulesets/**/*.json"
-      - ".github/workflows/org-ruleset.yml"
+      - ".github/workflows/org-rulesets.yml"
   schedule:
     - cron: "0 6 * * *" # Run at 6 AM daily
   workflow_dispatch:
@@ -32,37 +32,45 @@ jobs:
           echo "[Stage] Setting up GitHub CLI"
           gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
 
-      - name: Configure rulesets in target repos
+      - name: List and configure rulesets
         env:
           GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
-          echo "[Stage] Starting configuration of rulesets across repositories."
+          echo "[Stage] Listing rulesets across repositories."
 
-          # For each directory inside .github/workflows/branch-rulesets, treat
-          # that directory name as the target repository name.
           for repo_dir in .github/workflows/branch-rulesets/*; do
             if [ -d "$repo_dir" ]; then
               repo_name="$(basename "$repo_dir")"
               echo "\n=== [Processing Repository] $repo_name ==="
 
-              # Collect ruleset names from local JSON files
-              local_ruleset_names=()
-              echo "[Info] Collecting local ruleset files for $repo_name."
-              for ruleset_file in "$repo_dir"/*.json; do
-                [ -f "$ruleset_file" ] || continue
-                # We'll treat the file name (minus .json) as the ruleset name
+              # Collect and display ruleset names from local JSON files
+              echo "[Info] Collecting local rulesets for $repo_name."
+              local_ruleset_files=("$repo_dir"/*.json)
+              if [ "${#local_ruleset_files[@]}" -eq 0 ]; then
+                echo "[Warning] No ruleset files found for $repo_name. Skipping."
+                continue
+              fi
+
+              echo "[Info] Local ruleset files:" 
+              for ruleset_file in "${local_ruleset_files[@]}"; do
                 ruleset_name="$(basename "$ruleset_file" .json)"
-                local_ruleset_names+=("$ruleset_name")
-                echo "[Found Ruleset] $ruleset_name from file $ruleset_file."
+                echo "  - $ruleset_name (from $ruleset_file)"
               done
 
-              echo "[Summary] Local rulesets for $repo_name: ${local_ruleset_names[*]}"
-
-              # List existing rulesets on the *target* repo
+              # Fetch and display existing rulesets from GitHub
               echo "[Info] Fetching existing rulesets from GitHub for $repo_name."
               existing_ruleset_names="$(gh api "repos/${{ github.repository_owner }}/$repo_name/rulesets" --jq '.[].name' 2>/dev/null || true)"
+              if [ -n "$existing_ruleset_names" ]; then
+                echo "[Info] Existing rulesets in $repo_name:"
+                echo "$existing_ruleset_names" | while read -r ruleset; do
+                  echo "  - $ruleset"
+                done
+              else
+                echo "[Info] No existing rulesets found for $repo_name."
+              fi
+
               echo "\n[Complete] Finished processing $repo_name."
             fi
           done
 
-          echo "[Complete] Ruleset configuration process completed for all repositories."
+          echo "[Complete] Ruleset listing process completed for all repositories."
