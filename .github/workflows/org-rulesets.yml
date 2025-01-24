@@ -36,6 +36,13 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
+
+          echo "[Stage] Fetching repositories in the organization"
+          repos=$(gh api "orgs/${{ github.repository_owner }}/repos" --paginate --jq '.[].full_name')
+          echo "Repositories found:"
+          echo "$repos"
+
+
           echo "[Stage] Listing rulesets across repositories."
 
           for repo_dir in .github/workflows/branch-rulesets/*; do
@@ -69,7 +76,7 @@ jobs:
                 echo "[Info] No existing rulesets found for $repo_name."
               fi
 
-              echo "\n[Complete] Finished processing $repo_name."
+              echo "[Complete] Finished processing $repo_name."
             fi
           done
 
