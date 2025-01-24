@@ -1,19 +1,21 @@
-name: Configure Branch Protection Rulesets (Management Repo)
+name: Manage Branch Rulesets
 
 on:
   push:
-    # Run if any .json file is modified or created/removed:
     paths:
       - ".github/workflows/branch-rulesets/**/*.json"
-      - ".github/workflows/org-rulesets.yml"
+      - ".github/workflows/org-rulesets.yml"      
   schedule:
-    - cron: "0 6 * * *" # Run at 6 AM daily
+    - cron: "0 6 * * *" # Runs daily at 6 AM
   workflow_dispatch:
 
-permissions: read-all
+permissions:
+  contents: read
+  actions: read
+  administration: write
 
 jobs:
-  configure_rulesets_across_repos:
+  manage_branch_rulesets:
     runs-on: ubuntu-latest
 
     steps:
@@ -32,52 +34,63 @@ jobs:
           echo "[Stage] Setting up GitHub CLI"
           gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
 
-      - name: List and configure rulesets
-        env:
-          GH_TOKEN: ${{ steps.create_token.outputs.token }}
+      - name: Find all repositories in the organization
+        id: list_repos
         run: |
+          REPOS=$(gh api orgs/${{ github.repository_owner }}/repos --jq '.[].name')
+          echo "Found repositories: $REPOS"
+          echo "repos=$REPOS" >> $GITHUB_ENV
 
-          echo "[Stage] Fetching repositories in the organization"
-          repos=$(gh api "orgs/${{ github.repository_owner }}/repos" --paginate --jq '.[].full_name')
-          echo "Repositories found:"
-          echo "$repos"
+      - name: List branch rulesets JSON templates
+        id: list_json_files
+        run: |
+          JSON_FILES=$(find .github/workflows/branch-rulesets -type f -name '*.json')
+          echo "Found JSON templates: $JSON_FILES"
+          echo "json_files=$JSON_FILES" >> $GITHUB_ENV
 
+      - name: Process branch rulesets
+        env:
+          REPOS: ${{ env.repos }}
+          JSON_FILES: ${{ env.json_files }}
+        run: |
+          for repo in $REPOS; do
+            echo "Processing repository: $repo"
 
-          echo "[Stage] Listing rulesets across repositories."
+            # List existing rulesets for the repository
+            EXISTING_RULESETS=$(gh api repos/${{ github.repository_owner }}/$repo/branch_protection_rules --jq '.[].name')
+            echo "Existing rulesets for $repo: $EXISTING_RULESETS"
 
-          for repo_dir in .github/workflows/branch-rulesets/*; do
-            if [ -d "$repo_dir" ]; then
-              repo_name="$(basename "$repo_dir")"
-              echo "\n=== [Processing Repository] $repo_name ==="
+            for json_file in $JSON_FILES; do
+              TEMPLATE_REPO=$(basename $(dirname $json_file))
+              TEMPLATE_NAME=$(basename $json_file .json)
 
-              # Collect and display ruleset names from local JSON files
-              echo "[Info] Collecting local rulesets for $repo_name."
-              local_ruleset_files=("$repo_dir"/*.json)
-              if [ "${#local_ruleset_files[@]}" -eq 0 ]; then
-                echo "[Warning] No ruleset files found for $repo_name. Skipping."
-                continue
+              if [[ "$TEMPLATE_REPO" == "$repo" ]]; then
+                echo "Found template $json_file for repository $repo"
+
+                # Check if the ruleset exists
+                if [[ "$EXISTING_RULESETS" == *"$TEMPLATE_NAME"* ]]; then
+                  echo "Updating ruleset $TEMPLATE_NAME in $repo"
+                  gh api repos/${{ github.repository_owner }}/$repo/branch_protection_rules/$TEMPLATE_NAME \
+                    -X PATCH \
+                    -F @${json_file}
+                else
+                  echo "Creating new ruleset $TEMPLATE_NAME in $repo"
+                  gh api repos/${{ github.repository_owner }}/$repo/branch_protection_rules \
+                    -X POST \
+                    -F @${json_file}
+                fi
               fi
+            done
 
-              echo "[Info] Local ruleset files:" 
-              for ruleset_file in "${local_ruleset_files[@]}"; do
-                ruleset_name="$(basename "$ruleset_file" .json)"
-                echo "  - $ruleset_name (from $ruleset_file)"
-              done
-
-              # Fetch and display existing rulesets from GitHub
-              echo "[Info] Fetching existing rulesets from GitHub for $repo_name."
-              existing_ruleset_names="$(gh api "repos/${{ github.repository_owner }}/$repo_name/rulesets" --jq '.[].name' 2>/dev/null || true)"
-              if [ -n "$existing_ruleset_names" ]; then
-                echo "[Info] Existing rulesets in $repo_name:"
-                echo "$existing_ruleset_names" | while read -r ruleset; do
-                  echo "  - $ruleset"
-                done
-              else
-                echo "[Info] No existing rulesets found for $repo_name."
+            # Delete rulesets not in JSON templates
+            for ruleset in $EXISTING_RULESETS; do
+              if ! [[ "$JSON_FILES" == *"$repo/$ruleset.json"* ]]; then
+                echo "Deleting obsolete ruleset $ruleset in $repo"
+                gh api repos/${{ github.repository_owner }}/$repo/branch_protection_rules/$ruleset -X DELETE
               fi
-
-              echo "[Complete] Finished processing $repo_name."
-            fi
+            done
           done
 
-          echo "[Complete] Ruleset listing process completed for all repositories."
+      - name: Summary
+        run: |
+          echo "Managed branch rulesets across all repositories."
