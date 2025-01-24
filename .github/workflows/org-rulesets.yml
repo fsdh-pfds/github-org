@@ -79,7 +79,7 @@ jobs:
             for ruleset in $existing_rulesets; do
               if ! echo "$json_files" | grep -q "$repo/$ruleset.json"; then
                 echo "Deleting obsolete ruleset $ruleset in $repo"
-                gh api repos/${{ github.repository_owner }}/$repo/branch_protection_rules/$ruleset -X DELETE
+                gh api repos/${{ github.repository_owner }}/$repo/rulesets/$ruleset -X DELETE
               fi
             done
           done
