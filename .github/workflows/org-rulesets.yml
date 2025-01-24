@@ -57,21 +57,21 @@ jobs:
               template_repo=$(basename $(dirname $json_file))  # Extract repo name from path
               template_name=$(basename $json_file .json)      # Extract ruleset name
 
-              if [[ "$template_repo" == "$repo" ]]; then
-                echo "Found matching template $json_file for repository $repo"
-
-                # Check if the ruleset exists
-                if echo "$existing_rulesets" | grep -q "$template_name"; then
-                  echo "Updating ruleset $template_name in $repo"
-                  gh api repos/${{ github.repository_owner }}/$repo/rulesets/$template_name \
-                    -X PATCH \
-                    -F @${json_file}
-                else
-                  echo "Creating new ruleset $template_name in $repo"
-                  gh api repos/${{ github.repository_owner }}/$repo/rulesets \
-                    -X POST \
-                    -F @${json_file}
-                fi
+              # Check if the ruleset exists
+              if echo "$existing_rulesets" | grep -q "$template_name"; then
+                echo "Updating ruleset $template_name in $repo"
+                gh api repos/${{ github.repository_owner }}/$repo/rulesets/$template_name \
+                  --method PATCH \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  --input "$json_file"
+              else
+                echo "Creating new ruleset $template_name in $repo"
+                gh api repos/${{ github.repository_owner }}/$repo/rulesets \
+                  --method POST \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  --input "$json_file"
               fi
             done
 
