@@ -5,6 +5,7 @@ on:
     # Run if any .json file is modified or created/removed:
     paths:
       - ".github/workflows/branch-rulesets/**/*.json"
+      - ".github/workflows/org-ruleset.yml"
   schedule:
     - cron: "0 6 * * *" # Run at 6 AM daily
   workflow_dispatch:
