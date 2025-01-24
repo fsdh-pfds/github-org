@@ -49,7 +49,7 @@ jobs:
             echo "Processing repository: $repo"
 
             # List existing branch protection rulesets
-            existing_rulesets=$(gh api repos/${{ github.repository_owner }}/$repo/branch_protection_rules --jq '.[].name')
+            existing_rulesets=$(gh api repos/${{ github.repository_owner }}/$repo/rulesets --jq '.[].name')
             echo "Existing rulesets for $repo: $existing_rulesets"
 
             # Loop through JSON files and match against repo
