@@ -61,28 +61,6 @@ jobs:
               echo "[Info] Fetching existing rulesets from GitHub for $repo_name."
               existing_ruleset_names="$(gh api "repos/${{ github.repository_owner }}/$repo_name/rulesets" --jq '.[].name' 2>/dev/null || true)"
 
-              # --- Remove unmatched rulesets ---
-              echo "[Stage] Removing unmatched rulesets from $repo_name."
-              for existing in $existing_ruleset_names; do
-                if ! printf '%s\n' "${local_ruleset_names[@]}" | grep -qx "$existing"; then
-                  echo "[Deleting] Unmatched ruleset: $existing from repo: $repo_name."
-                  ruleset_id="$(gh api "repos/${{ github.repository_owner }}/$repo_name/rulesets" \
-                    --jq ".[] | select(.name == \"$existing\") | .id" 2>/dev/null || true)"
-
-                  # Only delete if we found a valid ID
-                  if [ -n "$ruleset_id" ]; then
-                    gh api "repos/${{ github.repository_owner }}/$repo_name/rulesets/$ruleset_id" \
-                      --method DELETE \
-                      -H "Accept: application/vnd.github+json" \
-                      -H "X-GitHub-Api-Version: 2022-11-28" \
-                      --header "Authorization: token $GH_TOKEN" \
-                      && echo "[Success] Deleted ruleset: $existing." \
-                      || echo "[Error] Failed to delete ruleset: $existing."
-                  fi
-                fi
-              done
-
-              
 
               echo "\n[Complete] Finished processing $repo_name."
             fi
