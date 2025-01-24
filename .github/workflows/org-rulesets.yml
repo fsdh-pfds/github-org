@@ -60,8 +60,6 @@ jobs:
               # List existing rulesets on the *target* repo
               echo "[Info] Fetching existing rulesets from GitHub for $repo_name."
               existing_ruleset_names="$(gh api "repos/${{ github.repository_owner }}/$repo_name/rulesets" --jq '.[].name' 2>/dev/null || true)"
-
-
               echo "\n[Complete] Finished processing $repo_name."
             fi
           done
