@@ -1,3 +1,37 @@
+name: Configure Branch Protection Rulesets (Management Repo)
+
+on:
+  push:
+    # Run if any .json file is modified or created/removed:
+    paths:
+      - ".github/workflows/branch-rulesets/**/*.json"
+      - ".github/workflows/org-rulesets.yml"    
+  schedule:
+    - cron: "0 6 * * *" # Run at 6 AM daily
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  configure_rulesets_across_repos:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Convert App token (GitHub App with repo admin perms)
+        id: create_token
+        uses: getsentry/action-github-app-token@v3.0.0
+        with:
+          app_id: ${{ vars.FSDH_REPO_ADMIN_APP_ID }}
+          private_key: ${{ secrets.FSDH_REPO_ADMIN_APP_KEY }}
+
+      - name: Checkout management repo
+        uses: actions/checkout@v4
+
+      - name: Set up GitHub CLI
+        run: |
+          # Log into the gh CLI using the GitHub App token
+          gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
+
       - name: Configure rulesets in target repos
         env:
           GH_TOKEN: ${{ steps.create_token.outputs.token }}
