@@ -72,22 +72,30 @@ jobs:
             for json_file in $repo_json_files; do
               template_name=$(basename "$json_file" .json)  # Extract ruleset name
 
-              # Check if the ruleset exists
-              if echo "$existing_rulesets" | grep -q "$template_name"; then
-                echo "Updating ruleset $template_name in $repo"
-                gh api repos/${{ github.repository_owner }}/$repo/rulesets/$template_name \
-                  --method PATCH \
+              # Find the ruleset ID for the existing ruleset
+              ruleset_id=$(gh api repos/${{ github.repository_owner }}/$repo/rulesets \
+                --jq ".[] | select(.name==\"$template_name\") | .id")
+
+              if [ -n "$ruleset_id" ]; then
+                echo "Updating ruleset $template_name in $repo (ID: $ruleset_id)"
+                if ! gh api \
+                  --method PUT \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
-                  --input "$json_file"
+                  /repos/${{ github.repository_owner }}/$repo/rulesets/$ruleset_id \
+                  --input "$json_file"; then
+                  echo "Failed to update ruleset $template_name in $repo. Skipping."
+                fi
               else
                 echo "Creating new ruleset $template_name in $repo"
-                gh api repos/${{ github.repository_owner }}/$repo/rulesets \
+                if ! gh api \
                   --method POST \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
-                  --input "$json_file"
+                  /repos/${{ github.repository_owner }}/$repo/rulesets \
+                  --input "$json_file"; then
+                  echo "Failed to create ruleset $template_name in $repo. Skipping."
+                fi
               fi
             done
           done
-          
