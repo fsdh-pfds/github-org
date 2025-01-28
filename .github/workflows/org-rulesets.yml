@@ -2,7 +2,6 @@ name: Configure Branch Protection Rulesets (Management Repo)
 
 on:
   push:
-    # Run if any .json file is modified or created/removed:
     paths:
       - ".github/workflows/branch-rulesets/**/*.json"
       - ".github/workflows/org-rulesets.yml"    
@@ -29,7 +28,6 @@ jobs:
 
       - name: Set up GitHub CLI
         run: |
-          # Log into the gh CLI using the GitHub App token
           gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
 
       - name: Configure rulesets in target repos
@@ -48,14 +46,28 @@ jobs:
           for repo in $repos; do
             echo "Processing repository: $repo"
 
+            # Check if there are JSON files for this repo
+            repo_json_files=$(echo "$json_files" | grep "/$repo/")
+            if [ -z "$repo_json_files" ]; then
+              echo "No JSON files found for $repo. Skipping."
+              continue
+            fi
+
             # List existing branch protection rulesets
             existing_rulesets=$(gh api repos/${{ github.repository_owner }}/$repo/rulesets --jq '.[].name')
             echo "Existing rulesets for $repo: $existing_rulesets"
 
+            # Delete obsolete rulesets not in templates
+            for ruleset in $existing_rulesets; do
+              if ! echo "$repo_json_files" | grep -q "/$repo/$ruleset.json"; then
+                echo "Deleting obsolete ruleset $ruleset in $repo"
+                gh api repos/${{ github.repository_owner }}/$repo/rulesets/$ruleset -X DELETE
+              fi
+            done
+
             # Loop through JSON files and match against repo
-            for json_file in $json_files; do
-              template_repo=$(basename $(dirname $json_file))  # Extract repo name from path
-              template_name=$(basename $json_file .json)      # Extract ruleset name
+            for json_file in $repo_json_files; do
+              template_name=$(basename $json_file .json)  # Extract ruleset name
 
               # Check if the ruleset exists
               if echo "$existing_rulesets" | grep -q "$template_name"; then
@@ -72,14 +84,6 @@ jobs:
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
                   --input "$json_file"
-              fi
-            done
-
-            # Delete obsolete rulesets not in templates
-            for ruleset in $existing_rulesets; do
-              if ! echo "$json_files" | grep -q "$repo/$ruleset.json"; then
-                echo "Deleting obsolete ruleset $ruleset in $repo"
-                gh api repos/${{ github.repository_owner }}/$repo/rulesets/$ruleset -X DELETE
               fi
             done
           done
