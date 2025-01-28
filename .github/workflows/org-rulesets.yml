@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - ".github/workflows/branch-rulesets/**/*.json"
-      - ".github/workflows/org-rulesets.yml"    
+      - ".github/workflows/org-rulesets.yml"
   schedule:
     - cron: "0 6 * * *" # Run at 6 AM daily
   workflow_dispatch:
@@ -34,6 +34,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.create_token.outputs.token }}
         run: |
+          set -e
           # List all repositories in the organization
           repos=$(gh api orgs/${{ github.repository_owner }}/repos --jq '.[].name')
           echo "Found repositories: $repos"
@@ -62,9 +63,25 @@ jobs:
 
             # Delete obsolete rulesets not in templates
             for ruleset in $existing_rulesets; do
+              # Get the ID of the ruleset
+              ruleset_id=$(gh api repos/${{ github.repository_owner }}/$repo/rulesets \
+                --jq ".[] | select(.name==\"$ruleset\") | .id")
+
+              if [ -z "$ruleset_id" ]; then
+                echo "Failed to find ID for ruleset $ruleset in $repo. Skipping."
+                continue
+              fi
+
+              # Check if the ruleset exists in the JSON templates
               if ! echo "$repo_json_files" | grep -q "/$ruleset.json"; then
-                echo "Deleting obsolete ruleset $ruleset in $repo"
-                gh api repos/${{ github.repository_owner }}/$repo/rulesets/$ruleset -X DELETE
+                echo "Deleting obsolete ruleset $ruleset (ID: $ruleset_id) in $repo"
+                if ! gh api \
+                  --method DELETE \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  /repos/${{ github.repository_owner }}/$repo/rulesets/$ruleset_id; then
+                  echo "Failed to delete ruleset $ruleset in $repo. Skipping."
+                fi
               fi
             done
 
