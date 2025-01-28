@@ -38,18 +38,21 @@ jobs:
           repos=$(gh api orgs/${{ github.repository_owner }}/repos --jq '.[].name')
           echo "Found repositories: $repos"
 
-          # Find all branch ruleset JSON templates
-          json_files=$(find .github/workflows/branch-rulesets -type f -name '*.json')
-          echo "Found JSON files: $json_files"
-
           # Loop through repositories and process each
           for repo in $repos; do
             echo "Processing repository: $repo"
 
-            # Check if there are JSON files for this repo
-            repo_json_files=$(echo "$json_files" | grep "/$repo/")
+            # Check if the folder for this repo exists
+            repo_ruleset_folder=".github/workflows/branch-rulesets/$repo"
+            if [ ! -d "$repo_ruleset_folder" ]; then
+              echo "No ruleset folder found for $repo. Skipping."
+              continue
+            fi
+
+            # Find JSON files for this repo
+            repo_json_files=$(find "$repo_ruleset_folder" -type f -name '*.json')
             if [ -z "$repo_json_files" ]; then
-              echo "No JSON files found for $repo. Skipping."
+              echo "No JSON files found in $repo_ruleset_folder. Skipping."
               continue
             fi
 
@@ -59,7 +62,7 @@ jobs:
 
             # Delete obsolete rulesets not in templates
             for ruleset in $existing_rulesets; do
-              if ! echo "$repo_json_files" | grep -q "/$repo/$ruleset.json"; then
+              if ! echo "$repo_json_files" | grep -q "/$ruleset.json"; then
                 echo "Deleting obsolete ruleset $ruleset in $repo"
                 gh api repos/${{ github.repository_owner }}/$repo/rulesets/$ruleset -X DELETE
               fi
@@ -67,7 +70,7 @@ jobs:
 
             # Loop through JSON files and match against repo
             for json_file in $repo_json_files; do
-              template_name=$(basename $json_file .json)  # Extract ruleset name
+              template_name=$(basename "$json_file" .json)  # Extract ruleset name
 
               # Check if the ruleset exists
               if echo "$existing_rulesets" | grep -q "$template_name"; then
