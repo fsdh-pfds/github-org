@@ -63,7 +63,7 @@ jobs:
 
             # Delete obsolete rulesets not in templates
             for ruleset in $(echo "$existing_rulesets" | jq -r '.name'); do
-              ruleset_id=$(echo "$existing_rulesets" | jq -r "select(.name == \"$ruleset\") | .id")
+              ruleset_id=$(echo "$existing_rulesets" | jq -r ".[] | select(.name == \"$ruleset\") | .id")
               if ! echo "$repo_json_files" | grep -q "/$ruleset.json"; then
                 echo "Deleting obsolete ruleset $ruleset (ID: $ruleset_id) in $repo"
                 if ! gh api repos/${{ github.repository_owner }}/$repo/rulesets/$ruleset_id -X DELETE; then
