@@ -49,9 +49,9 @@ jobs:
               continue
             fi
 
-            # Find JSON files for this repo
-            repo_json_files=$(find "$repo_ruleset_folder" -type f -name '*.json')
-            if [ -z "$repo_json_files" ]; then
+            # Gather JSON files for this repo into an array
+            mapfile -t repo_json_files < <(find "$repo_ruleset_folder" -type f -name '*.json')
+            if [ "${#repo_json_files[@]}" -eq 0 ]; then
               echo "No JSON files found in $repo_ruleset_folder. Skipping."
               continue
             fi
@@ -60,34 +60,50 @@ jobs:
             # Grab the JSON response of existing rulesets
             existing_rulesets_json=$(gh api repos/${{ github.repository_owner }}/$repo/rulesets)
 
-            # Use jq to build an associative array of name -> id
+            # Use jq to build an associative array of name->id
             declare -A ruleset_map=()
             while IFS=',' read -r r_name r_id; do
-              r_name="${r_name//\"/}"  # remove extra quotes if present
-              r_id="${r_id//\"/}"    # remove extra quotes if present
+              # Remove extra quotes if present
+              r_name="${r_name//\"/}"
+              r_id="${r_id//\"/}"
               ruleset_map["$r_name"]="$r_id"
             done < <(echo "$existing_rulesets_json" | jq -r '.[] | [ .name, .id ] | @csv')
 
-            # Build a list of existing ruleset names (for deletion checks)
-            existing_ruleset_names=$(printf "%s\n" "${!ruleset_map[@]}")
-            echo "Existing rulesets: $existing_ruleset_names"
+            echo "Existing rulesets for $repo:"
+            for n in "${!ruleset_map[@]}"; do
+              echo "  -> '$n' (ID: ${ruleset_map[$n]})"
+            done
 
-            # Delete obsolete rulesets not in templates
-            for name in $existing_ruleset_names; do
-              id_to_delete="${ruleset_map[$name]}"
-              # If there's no corresponding JSON for this ruleset name, delete it
-              if ! echo "$repo_json_files" | grep -q "/$name.json"; then
-                echo "Deleting obsolete ruleset '$name' (ID: $id_to_delete) in $repo"
+            #
+            # 1) DELETE OBSOLETE RULESETS
+            #
+            # For each existing ruleset name, see if there's a matching .json file.
+            for n in "${!ruleset_map[@]}"; do
+              id_to_delete="${ruleset_map[$n]}"
+              found_file=false
+              for json_file in "${repo_json_files[@]}"; do
+                bn=$(basename "$json_file" .json)
+                if [ "$bn" = "$n" ]; then
+                  found_file=true
+                  break
+                fi
+              done
+
+              if [ "$found_file" = false ]; then
+                echo "Deleting obsolete ruleset '$n' (ID: $id_to_delete) in $repo"
                 gh api repos/${{ github.repository_owner }}/$repo/rulesets/$id_to_delete \
                   --method DELETE
               fi
             done
 
-            # Now update or create rulesets from JSON
-            for json_file in $repo_json_files; do
+            #
+            # 2) CREATE OR UPDATE RULESETS
+            #
+            for json_file in "${repo_json_files[@]}"; do
               template_name=$(basename "$json_file" .json)
-              # If this ruleset name already exists, update by ID
+
               if [[ -n "${ruleset_map[$template_name]}" ]]; then
+                # Update via PUT with the ruleset ID
                 ruleset_id="${ruleset_map[$template_name]}"
                 echo "Updating ruleset '$template_name' (ID: $ruleset_id) in $repo"
                 gh api repos/${{ github.repository_owner }}/$repo/rulesets/$ruleset_id \
@@ -96,7 +112,7 @@ jobs:
                   -H "X-GitHub-Api-Version: 2022-11-28" \
                   --input "$json_file"
               else
-                # Otherwise create a new one
+                # Create new ruleset via POST
                 echo "Creating new ruleset '$template_name' in $repo"
                 gh api repos/${{ github.repository_owner }}/$repo/rulesets \
                   --method POST \
