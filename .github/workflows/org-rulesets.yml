@@ -2,6 +2,8 @@ name: Configure Branch Protection Rulesets (Management Repo)
 
 on:
   push:
+    branches:
+      - main
     paths:
       - ".github/workflows/branch-rulesets/**/*.json"
       - ".github/workflows/org-rulesets.yml"
@@ -75,9 +77,8 @@ jobs:
               echo "  -> '$n' (ID: ${ruleset_map[$n]})"
             done
 
-            #
-            # 1) DELETE OBSOLETE RULESETS
-            #
+            
+            # DELETE OBSOLETE RULESETS
             # For each existing ruleset name, see if there's a matching .json file.
             for n in "${!ruleset_map[@]}"; do
               id_to_delete="${ruleset_map[$n]}"
@@ -97,9 +98,8 @@ jobs:
               fi
             done
 
-            #
-            # 2) CREATE OR UPDATE RULESETS
-            #
+
+            # CREATE OR UPDATE RULESETS
             for json_file in "${repo_json_files[@]}"; do
               template_name=$(basename "$json_file" .json)
 
