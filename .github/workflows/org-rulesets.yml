@@ -1,0 +1,128 @@
+name: Configure Branch Protection Rulesets (Management Repo)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/branch-rulesets/**/*.json"
+      - ".github/workflows/org-rulesets.yml"
+  schedule:
+    - cron: "0 6 * * *" # Run daily at 6 AM
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  configure_rulesets_across_repos:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Convert App token (GitHub App with repo admin perms)
+        id: create_token
+        uses: getsentry/action-github-app-token@v3.0.0
+        with:
+          app_id: ${{ vars.FSDH_REPO_ADMIN_APP_ID }}
+          private_key: ${{ secrets.FSDH_REPO_ADMIN_APP_KEY }}
+
+      - name: Checkout management repo
+        uses: actions/checkout@v4
+
+      - name: Set up GitHub CLI
+        run: |
+          gh auth login --with-token <<< "${{ steps.create_token.outputs.token }}"
+
+      - name: Configure rulesets in target repos
+        env:
+          GH_TOKEN: ${{ steps.create_token.outputs.token }}
+        run: |
+          set -e
+          # List all repositories in the organization
+          repos=$(gh api orgs/"${{ github.repository_owner }}"/repos --jq '.[].name')
+          mapfile -t repos_array <<< "$repos"
+          echo "Found repositories: ${repos_array[*]}"
+
+          for repo in "${repos_array[@]}"; do
+            echo "Processing repository: $repo"
+
+            # Check if the folder for this repo exists
+            repo_ruleset_folder=".github/workflows/branch-rulesets/$repo"
+            if [ ! -d "$repo_ruleset_folder" ]; then
+              echo "No ruleset folder found for $repo. Skipping."
+              continue
+            fi
+
+            # Gather JSON files for this repo into an array
+            mapfile -t repo_json_files < <(find "$repo_ruleset_folder" -type f -name '*.json')
+            if [ "${#repo_json_files[@]}" -eq 0 ]; then
+              echo "No JSON files found in $repo_ruleset_folder. Skipping."
+              continue
+            fi
+
+            echo "Retrieving existing rulesets for $repo..."
+            # Grab the JSON response of existing rulesets
+            existing_rulesets_json=$(gh api "repos/${{ github.repository_owner }}/$repo/rulesets")
+
+            # Use jq to build an associative array of name->id
+            declare -A ruleset_map=()
+            while IFS=',' read -r r_name r_id; do
+              # Remove extra quotes if present
+              r_name="${r_name//\"/}"
+              r_id="${r_id//\"/}"
+              ruleset_map["$r_name"]="$r_id"
+            done < <(echo "$existing_rulesets_json" | jq -r '.[] | [ .name, .id ] | @csv')
+
+            echo "Existing rulesets for $repo:"
+            for n in "${!ruleset_map[@]}"; do
+              echo "  -> '$n' (ID: ${ruleset_map[$n]})"
+            done
+
+            
+            # DELETE OBSOLETE RULESETS
+            # For each existing ruleset name, see if there's a matching .json file.
+            for n in "${!ruleset_map[@]}"; do
+              id_to_delete="${ruleset_map[$n]}"
+              found_file=false
+              for json_file in "${repo_json_files[@]}"; do
+                bn="$(basename "$json_file" .json)"
+                if [ "$bn" = "$n" ]; then
+                  found_file=true
+                  break
+                fi
+              done
+
+              if [ "$found_file" = false ]; then
+                echo "Deleting obsolete ruleset '$n' (ID: $id_to_delete) in $repo"
+                gh api "repos/${{ github.repository_owner }}/$repo/rulesets/$id_to_delete" \
+                  --method DELETE
+              fi
+            done
+
+
+            # CREATE OR UPDATE RULESETS
+            for json_file in "${repo_json_files[@]}"; do
+              template_name=$(basename "$json_file" .json)
+
+              if [[ -n "${ruleset_map[$template_name]}" ]]; then
+                # Update via PUT with the ruleset ID
+                ruleset_id="${ruleset_map[$template_name]}"
+                echo "Updating ruleset '$template_name' (ID: $ruleset_id) in $repo"
+                gh api "repos/${{ github.repository_owner }}/$repo/rulesets/$ruleset_id" \
+                  --method PUT \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  --input "$json_file"
+              else
+                # Create new ruleset via POST
+                echo "Creating new ruleset '$template_name' in $repo"
+                gh api "repos/${{ github.repository_owner }}/$repo/rulesets" \
+                  --method POST \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  --input "$json_file"
+              fi
+            done
+
+            # Clear the ruleset_map after each repo to avoid cross-contamination
+            unset ruleset_map
+          done

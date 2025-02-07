@@ -1,5 +1,5 @@
 {
-  "name": "default branch",
+  "name": "default-branch",
   "target": "branch",
   "source_type": "Repository",
   "enforcement": "active",
@@ -11,20 +11,16 @@
   },
   "rules": [
     {
-      "type": "deletion",
-      "parameters": {}
+      "type": "deletion"
     },
     {
-      "type": "non_fast_forward",
-      "parameters": {}
+      "type": "non_fast_forward"
     },
     {
-      "type": "required_linear_history",
-      "parameters": {}
+      "type": "required_linear_history"
     },
     {
-      "type": "required_signatures",
-      "parameters": {}
+      "type": "required_signatures"
     },
     {
       "type": "pull_request",
@@ -33,7 +29,9 @@
         "dismiss_stale_reviews_on_push": true,
         "require_code_owner_review": false,
         "require_last_push_approval": true,
-        "required_review_thread_resolution": true
+        "required_review_thread_resolution": true,
+        "automatic_copilot_code_review_enabled": false,
+        "allowed_merge_methods": ["merge", "squash", "rebase"]
       }
     },
     {
@@ -49,21 +47,12 @@
       }
     },
     {
-      "type": "required_status_checks",
-      "parameters": {
-        "strict_required_status_checks_policy": true,
-        "do_not_enforce_on_create": false,
-        "required_status_checks": []
-      }
-    },
-    {
-      "type": "creation",
-      "parameters": {}
+      "type": "creation"
     }
   ],
   "bypass_actors": [
     {
-      "actor_id": 1,
+      "actor_id": null,
       "actor_type": "OrganizationAdmin",
       "bypass_mode": "always"
     }
