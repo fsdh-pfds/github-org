@@ -2,7 +2,6 @@
   "name": "default-branch",
   "target": "branch",
   "source_type": "Repository",
-  "source": "fsdh-pfds/github-org",
   "enforcement": "active",
   "conditions": {
     "ref_name": {
