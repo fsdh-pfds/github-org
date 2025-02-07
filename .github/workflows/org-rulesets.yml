@@ -37,9 +37,10 @@ jobs:
           set -e
           # List all repositories in the organization
           repos=$(gh api orgs/"${{ github.repository_owner }}"/repos --jq '.[].name')
-          echo "Found repositories: $repos"
+          mapfile -t repos_array <<< "$repos"
+          echo "Found repositories: ${repos_array[*]}"
 
-          for repo in $repos; do
+          for repo in "${repos_array[@]}"; do
             echo "Processing repository: $repo"
 
             # Check if the folder for this repo exists
@@ -58,7 +59,7 @@ jobs:
 
             echo "Retrieving existing rulesets for $repo..."
             # Grab the JSON response of existing rulesets
-            existing_rulesets_json=$(gh api repos/${{ github.repository_owner }}/$repo/rulesets)
+            existing_rulesets_json=$(gh api "repos/${{ github.repository_owner }}/$repo/rulesets")
 
             # Use jq to build an associative array of name->id
             declare -A ruleset_map=()
@@ -91,7 +92,7 @@ jobs:
 
               if [ "$found_file" = false ]; then
                 echo "Deleting obsolete ruleset '$n' (ID: $id_to_delete) in $repo"
-                gh api repos/"${{ github.repository_owner }}"/$repo/rulesets/$id_to_delete \
+                gh api "repos/${{ github.repository_owner }}/$repo/rulesets/$id_to_delete" \
                   --method DELETE
               fi
             done
@@ -106,7 +107,7 @@ jobs:
                 # Update via PUT with the ruleset ID
                 ruleset_id="${ruleset_map[$template_name]}"
                 echo "Updating ruleset '$template_name' (ID: $ruleset_id) in $repo"
-                gh api repos/"${{ github.repository_owner }}"/$repo/rulesets/$ruleset_id \
+                gh api "repos/${{ github.repository_owner }}/$repo/rulesets/$ruleset_id" \
                   --method PUT \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -114,7 +115,7 @@ jobs:
               else
                 # Create new ruleset via POST
                 echo "Creating new ruleset '$template_name' in $repo"
-                gh api repos/"${{ github.repository_owner }}"/$repo/rulesets \
+                gh api "repos/${{ github.repository_owner }}/$repo/rulesets" \
                   --method POST \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
