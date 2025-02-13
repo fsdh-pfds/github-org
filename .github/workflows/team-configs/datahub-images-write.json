@@ -4,9 +4,22 @@
   "privacy": "closed",
   "notification_setting": "notifications_enabled",
   "members": [
-    { "username": "KingBain", "role": "member" },
-    { "username": "ErikApption", "role": "member" },
-    { "username": "Sean-Stilwell", "role": "member" }
+    {
+      "username": "KingBain",
+      "role": "member"
+    },
+    {
+      "username": "ErikApption",
+      "role": "member"
+    },
+    {
+      "username": "Sean-Stilwell",
+      "role": "member"
+    },
+    {
+      "username": "simon-wang-gc",
+      "role": "member"
+    }
   ],
   "repositories": [
     {
